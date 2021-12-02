@@ -1,4 +1,6 @@
-# Untitled notebook
+<!-- vim: syntax=markdown -->
+
+# Day 1
 
 ## Section
 
