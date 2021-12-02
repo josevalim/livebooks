@@ -2,6 +2,8 @@
 
 # Day 1
 
+Stream recording: https://www.twitch.tv/videos/1221981322
+
 ## Section
 
 ```elixir
