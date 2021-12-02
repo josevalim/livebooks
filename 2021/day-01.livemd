@@ -1,0 +1,123 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx"}
+])
+```
+
+## Part 1
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.splitter("\n", trim: true)
+|> Stream.map(&String.to_integer/1)
+|> Stream.chunk_every(2, 1, :discard)
+|> Enum.count(fn [left, right] -> right > left end)
+```
+
+## Part 2
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.to_integer/1)
+|> Enum.chunk_every(3, 1, :discard)
+|> Enum.chunk_every(2, 1, :discard)
+|> Enum.count(fn [[left, m1, m2], [m1, m2, right]] -> right > left end)
+```
+
+## Part 1 - Nx
+
+```elixir
+tensor =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer/1)
+  |> Nx.tensor()
+
+Nx.greater(tensor[1..-1//1], tensor[0..-2//1])
+|> Nx.sum()
+|> Nx.to_scalar()
+```
+
+## Part 2 - Nx
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.to_integer/1)
+|> Nx.tensor()
+|> Nx.window_sum({3})
+|> then(fn tensor ->
+  Nx.greater(tensor[1..-1//1], tensor[0..-2//1])
+end)
+|> Nx.sum()
+```
+
+## Part 2 - Nx+defn
+
+```elixir
+defmodule Day1 do
+  import Nx.Defn
+
+  defn window_sum(t) do
+    t
+    |> Nx.window_sum({3})
+    |> then(&(&1[1..-1//1] > &1[0..-2//1]))
+    |> Nx.sum()
+  end
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.to_integer/1)
+|> Nx.tensor()
+|> Day1.window_sum()
+```
+
+## Part 1 - recursion
+
+```elixir
+defmodule Recursion do
+  def recur([left, right | tail], acc) when right > left, do: recur([right | tail], acc + 1)
+  def recur([_left, right | tail], acc), do: recur([right | tail], acc)
+  def recur([_], acc), do: acc
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.to_integer/1)
+|> Recursion.recur(0)
+```
+
+```elixir
+defmodule Recursion do
+  def recur([head | tail]), do: recur(tail, head, 0)
+
+  def recur([head | tail], pivot, acc) when head > pivot, do: recur(tail, head, acc + 1)
+  def recur([head | tail], _pivot, acc), do: recur(tail, head, acc)
+  def recur([], _, acc), do: acc
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.to_integer/1)
+|> Recursion.recur()
+```
