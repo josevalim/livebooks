@@ -24,7 +24,7 @@ input = Kino.Input.textarea("Please paste your input file:")
 ```elixir
 input
 |> Kino.Input.read()
-|> String.splitter("\n", trim: true)
+|> String.split("\n", trim: true)
 |> Stream.map(&String.to_integer/1)
 |> Stream.chunk_every(2, 1, :discard)
 |> Enum.count(fn [left, right] -> right > left end)
