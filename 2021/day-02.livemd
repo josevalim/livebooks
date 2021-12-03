@@ -1,0 +1,167 @@
+# Day 2
+
+Stream recording: https://www.twitch.tv/videos/1222881012
+
+## Setup
+
+```elixir
+Mix.install(
+  [
+    {:kino, github: "livebook-dev/kino"},
+    {:nx, github: "elixir-nx/nx", sparse: "nx"}
+  ]
+)
+```
+
+```elixir
+input = Kino.Input.textarea("Please add your input:")
+```
+
+## Part 1
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.reduce({_depth = 0, _position = 0}, fn
+  "forward " <> number, {depth, position} ->
+    {depth, String.to_integer(number) + position}
+
+  "down " <> number, {depth, position} ->
+    {String.to_integer(number) + depth, position}
+
+  "up " <> number, {depth, position} ->
+    {-String.to_integer(number) + depth, position}
+end)
+|> then(fn {depth, position} -> depth * position end)
+```
+
+## Part 2
+
+```elixir
+defmodule Submarine do
+  def navigate("forward " <> number, {depth, position, aim}) do
+    number = String.to_integer(number)
+    {depth + aim * number, number + position, aim}
+  end
+
+  def navigate("down " <> number, {depth, position, aim}) do
+    {depth, position, aim + String.to_integer(number)}
+  end
+
+  def navigate("up " <> number, {depth, position, aim}) do
+    {depth, position, aim - String.to_integer(number)}
+  end
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.reduce({_depth = 0, _position = 0, _aim = 0}, &Submarine.navigate/2)
+|> then(fn {depth, position, _aim} -> depth * position end)
+```
+
+## Part 1 - Nx
+
+```elixir
+defmodule Subnx do
+  import Nx.Defn
+
+  defn navigate(tensor) do
+    {size, _} = Nx.shape(tensor)
+
+    {_, depth, position, _} =
+      while {i = 0, depth = 0, position = 0, tensor}, i < size do
+        instruction = tensor[i][0]
+        value = tensor[i][1]
+
+        cond do
+          instruction == 0 -> {i + 1, depth, position + value, tensor}
+          instruction == 1 -> {i + 1, depth + value, position, tensor}
+          instruction == 2 -> {i + 1, depth - value, position, tensor}
+          :otherwise -> {i + 1, depth, position, tensor}
+        end
+      end
+
+    depth * position
+  end
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(fn
+  "forward " <> number -> [0, String.to_integer(number)]
+  "down " <> number -> [1, String.to_integer(number)]
+  "up " <> number -> [2, String.to_integer(number)]
+end)
+|> Nx.tensor()
+|> Subnx.navigate()
+```
+
+## Part 1 - Nx from Sean
+
+From: https://gist.github.com/seanmor5/1d34da2d09bd0be01e53796e08fdb3d3
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(fn line ->
+  [direction, amt] = String.split(line)
+  amt_int = String.to_integer(amt)
+
+  case direction do
+    "forward" ->
+      {amt_int, 0}
+
+    "up" ->
+      {0, -amt_int}
+
+    "down" ->
+      {0, amt_int}
+  end
+end)
+|> Enum.unzip()
+|> then(fn {xs, ys} ->
+  Nx.multiply(Nx.sum(Nx.tensor(xs)), Nx.sum(Nx.tensor(ys)))
+end)
+```
+
+## Part 2 - Nx from Sean
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(fn line ->
+  [direction, amt] = String.split(line)
+  amt_int = String.to_integer(amt)
+
+  case direction do
+    "forward" ->
+      {amt_int, 0}
+
+    "up" ->
+      {0, -amt_int}
+
+    "down" ->
+      {0, amt_int}
+  end
+end)
+|> Enum.unzip()
+|> then(fn {forwards, aims} ->
+  aims = Nx.tensor(aims)
+  forwards = Nx.tensor(forwards)
+
+  # Do a cumulative sum of aims to get aims at each forward point
+  n = Nx.size(aims)
+  padding_config = [{n - 1, 0}]
+  window_shape = {n}
+  temporal_aims = Nx.window_sum(aims, window_shape, padding: padding_config)
+
+  depths = Nx.dot(temporal_aims, forwards)
+  horizontal = Nx.sum(forwards)
+  Nx.multiply(depths, horizontal)
+end)
+```
