@@ -1,3 +1,5 @@
+<!-- vim: syntax=markdown -->
+
 # Day 2
 
 Stream recording: https://www.twitch.tv/videos/1222881012
