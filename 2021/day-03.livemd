@@ -1,0 +1,116 @@
+<!-- vim: syntax=markdown -->
+
+# Day 3
+
+* Stream recording: https://www.twitch.tv/videos/1223929784
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.0"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx"}
+])
+
+import Bitwise
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+numbers =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&(&1 |> String.to_charlist() |> List.to_tuple()))
+
+[sample | _] = numbers
+number_length = tuple_size(sample)
+half = div(length(numbers), 2)
+
+gamma_as_list =
+  for pos <- 0..(number_length - 1) do
+    # We only need to count until half + 1 to know if we have more zeroes than ones
+    zero_count = Enum.count_until(numbers, &(elem(&1, pos) == ?0), half + 1)
+    if zero_count > half, do: ?0, else: ?1
+  end
+
+gamma = List.to_integer(gamma_as_list, 2)
+mask = 2 ** number_length - 1
+epsilon = bnot(gamma) &&& mask
+gamma * epsilon
+```
+
+## Part 2
+
+```elixir
+defmodule Recursion do
+  defp recur([number], _pos, _fun) do
+    number
+    |> Tuple.to_list()
+    |> List.to_integer(2)
+  end
+
+  defp recur(numbers, pos, fun) do
+    zero_count = Enum.count(numbers, &(elem(&1, pos) == ?0))
+    one_count = length(numbers) - zero_count
+    to_keep = fun.(zero_count, one_count)
+    numbers = Enum.filter(numbers, &(elem(&1, pos) == to_keep))
+    recur(numbers, pos + 1, fun)
+  end
+
+  def o2(numbers) do
+    recur(numbers, 0, fn zero_count, one_count ->
+      if one_count >= zero_count, do: ?1, else: ?0
+    end)
+  end
+
+  def co2(numbers) do
+    recur(numbers, 0, fn zero_count, one_count ->
+      if zero_count <= one_count, do: ?0, else: ?1
+    end)
+  end
+end
+
+numbers =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&(&1 |> String.to_charlist() |> List.to_tuple()))
+
+Recursion.o2(numbers) * Recursion.co2(numbers)
+```
+
+## Part 1 - Nx
+
+```elixir
+matrix =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    Enum.map(String.to_charlist(line), &(&1 - ?0))
+  end)
+  |> Nx.tensor(type: {:u, 8}, names: [:numbers, :digits])
+
+{total, number_length} = Nx.shape(matrix)
+
+ones =
+  matrix
+  |> Nx.sum(axes: [:numbers])
+  |> Nx.greater(div(total, 2))
+
+powers = Nx.reverse(Nx.power(2, Nx.iota({number_length})))
+# Nx.power(2, Nx.subtract(number_length - 1, Nx.iota({number_length})))
+
+gamma = Nx.dot(powers, ones) |> Nx.to_scalar()
+mask = 2 ** number_length - 1
+epsilon = bnot(gamma) &&& mask
+gamma * epsilon
+```
