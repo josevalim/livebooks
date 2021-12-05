@@ -1,3 +1,5 @@
+<!-- vim: syntax=markdown -->
+
 # Advent of Code 2021
 
 ## Index
