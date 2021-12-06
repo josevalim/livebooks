@@ -2,10 +2,10 @@
 
 # Day 3
 
-* Stream recording: https://www.twitch.tv/videos/1223929784
-* Stream summary: https://www.youtube.com/watch?v=SGQFAn4HtAI
-
 ## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1223929784)
+* [Stream summary](https://www.youtube.com/watch?v=SGQFAn4HtAI)
 
 ```elixir
 Mix.install([

@@ -1,0 +1,104 @@
+<!-- vim: syntax=markdown -->
+
+# Day 5
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1225900187)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"},
+  {:vega_lite, "~> 0.1.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please type your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    line
+    |> String.split([",", " -> "])
+    |> Enum.map(&String.to_integer/1)
+  end)
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Counter1 do
+  def lines(lines) do
+    lines
+    |> Enum.reduce(%{}, fn
+      [x, y1, x, y2], grid ->
+        Enum.reduce(y1..y2, grid, fn y, grid ->
+          Map.update(grid, {x, y}, 1, &(&1 + 1))
+        end)
+
+      [x1, y, x2, y], grid ->
+        Enum.reduce(x1..x2, grid, fn x, grid ->
+          Map.update(grid, {x, y}, 1, &(&1 + 1))
+        end)
+
+      _line, grid ->
+        grid
+    end)
+    |> Enum.count(fn {_, v} -> v > 1 end)
+  end
+end
+
+Counter1.lines(lines)
+```
+
+## Part 2
+
+```elixir
+defmodule Counter2 do
+  def lines(lines) do
+    lines
+    |> Enum.reduce(%{}, fn
+      [x, y1, x, y2], grid -> sum_grid(Stream.cycle([x]), y1..y2, grid)
+      [x1, y, x2, y], grid -> sum_grid(x1..x2, Stream.cycle([y]), grid)
+      [x1, y1, x2, y2], grid -> sum_grid(x1..x2, y1..y2, grid)
+    end)
+    |> Enum.count(fn {_, v} -> v > 1 end)
+  end
+
+  defp sum_grid(xs, ys, grid) do
+    Enum.reduce(Enum.zip(xs, ys), grid, fn point, grid ->
+      Map.update(grid, point, 1, &(&1 + 1))
+    end)
+  end
+end
+
+Counter2.lines(lines)
+```
+
+```elixir
+lines_data =
+  lines
+  |> Enum.flat_map(fn
+    [x, y1, x, y2] -> Enum.zip(Stream.cycle([x]), y1..y2)
+    [x1, y, x2, y] -> Enum.zip(x1..x2, Stream.cycle([y]))
+    [x1, y1, x2, y2] -> Enum.zip(x1..x2, y1..y2)
+  end)
+  |> Enum.map(fn {x, y} -> %{x: x, y: y} end)
+
+alias VegaLite, as: Vl
+
+Vl.new(width: 400, height: 400, background: "white")
+|> Vl.data_from_values(lines_data)
+|> Vl.mark(:circle)
+|> Vl.encode_field(:x, "x", axis: [title: "x"], bin: [maxbins: 50])
+|> Vl.encode_field(:y, "y", axis: [title: "y"], bin: [maxbins: 50])
+|> Vl.encode(:size, aggregate: :count)
+|> Vl.encode(:color, aggregate: :count, scale: [range: ["green", "red"]])
+```

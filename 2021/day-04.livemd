@@ -2,9 +2,9 @@
 
 # Day 4
 
-* Stream recording: https://www.twitch.tv/videos/1225076231
-
 ## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1225076231)
 
 ```elixir
 Mix.install(
