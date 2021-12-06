@@ -7,7 +7,7 @@
 * Stream recording: https://www.twitch.tv/videos/1221981322
 * Stream summary: https://www.youtube.com/watch?v=mDxJjqx5-ns
 
-## Section
+## Setup
 
 ```elixir
 Mix.install([
@@ -16,11 +16,11 @@ Mix.install([
 ])
 ```
 
-## Part 1
-
 ```elixir
 input = Kino.Input.textarea("Please paste your input file:")
 ```
+
+## Part 1
 
 <!-- livebook:{"reevaluate_automatically":true} -->
 
