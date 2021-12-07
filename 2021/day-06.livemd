@@ -1,3 +1,5 @@
+<!-- vim: syntax=markdown -->
+
 # Day 6
 
 ## Setup
