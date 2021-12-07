@@ -1,0 +1,158 @@
+# Day 6
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1226814298)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx"},
+  {:vega_lite, "~> 0.1.1"}
+])
+```
+
+```elixir
+input = Kino.Input.text("Please paste your input:")
+```
+
+```elixir
+fishes =
+  input
+  |> Kino.Input.read()
+  |> String.split(",")
+  |> Enum.map(&String.to_integer/1)
+```
+
+## Part 1
+
+```elixir
+defmodule Recursion1 do
+  def recur(fishes) do
+    recur(fishes, [])
+  end
+
+  defp recur([0 | fishes], children), do: [6 | recur(fishes, [8 | children])]
+  defp recur([fish | fishes], children), do: [fish - 1 | recur(fishes, children)]
+  defp recur([], children), do: Enum.reverse(children)
+end
+
+1..80
+|> Enum.reduce([0], fn _, fishes -> Recursion1.recur(fishes) end)
+|> length()
+```
+
+## Part 2
+
+```elixir
+defmodule Recursion2 do
+  def recur({prev0, prev1, prev2, prev3, prev4, prev5, prev6, prev7, prev8}) do
+    {prev1, prev2, prev3, prev4, prev5, prev6, prev7 + prev0, prev8, prev0}
+  end
+end
+
+frequencies = Enum.frequencies(fishes)
+amounts = Enum.map(0..8, fn i -> frequencies[i] || 0 end) |> List.to_tuple()
+
+1..256
+|> Enum.reduce(amounts, fn _, amounts -> Recursion2.recur(amounts) end)
+|> Tuple.sum()
+```
+
+## Part 2 - VegaLite
+
+From: https://gist.github.com/jonatanklosko/449485d2308a249c87c1f84c78a1a29c
+
+```elixir
+alias VegaLite, as: Vl
+
+graph =
+  Vl.new(height: 300, width: 300)
+  |> Vl.mark(:line)
+  |> Vl.encode_field(:x, "day", type: :quantitative)
+  |> Vl.encode_field(:y, "count", type: :quantitative)
+  # |> Vl.encode_field(:y, "count", type: :quantitative, scale: [type: :log])
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+Kino.VegaLite.periodically(
+  graph,
+  100,
+  {0, amounts},
+  fn {day, {t0, t1, t2, t3, t4, t5, t6, t7, t8} = t} ->
+    count = Tuple.sum(t)
+    Kino.VegaLite.push(graph, %{day: day, count: count})
+
+    if day < 256 do
+      t = {t1, t2, t3, t4, t5, t6, t7 + t0, t8, t0}
+      {:cont, {day + 1, t}}
+    else
+      :halt
+    end
+  end
+)
+```
+
+```elixir
+graph =
+  Vl.new(height: 300, width: 300)
+  |> Vl.mark(:bar)
+  |> Vl.encode_field(:x, "timer", type: :nominal)
+  |> Vl.encode_field(:y, "count", type: :quantitative)
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+Kino.VegaLite.periodically(
+  graph,
+  100,
+  {0, amounts},
+  fn {day, {t0, t1, t2, t3, t4, t5, t6, t7, t8} = t} ->
+    histogram_points =
+      t
+      |> Tuple.to_list()
+      |> Enum.with_index()
+      |> Enum.map(fn {count, timer} -> %{count: count, timer: timer} end)
+
+    Kino.VegaLite.push_many(graph, histogram_points, window: length(histogram_points))
+
+    if day < 256 do
+      t = {t1, t2, t3, t4, t5, t6, t7 + t0, t8, t0}
+      {:cont, {day + 1, t}}
+    else
+      :halt
+    end
+  end
+)
+```
+
+## Part 2 - Nx
+
+From https://gist.github.com/rhbvkleef/0ec152310954e62999170f70ca8c7489.
+
+```elixir
+import Nx, only: :sigils
+
+frequencies = Enum.frequencies(fishes)
+tensor = Nx.tensor(Enum.map(0..5, fn i -> frequencies[i] || 0 end))
+
+matrix = ~M"""
+0 0 0 0 0 0 1 0 1
+1 0 0 0 0 0 0 0 0
+0 1 0 0 0 0 0 0 0
+0 0 1 0 0 0 0 0 0
+0 0 0 1 0 0 0 0 0
+0 0 0 0 1 0 0 0 0
+0 0 0 0 0 1 0 0 0
+0 0 0 0 0 0 1 0 0
+0 0 0 0 0 0 0 1 0
+"""
+
+final =
+  1..255
+  |> Enum.reduce(matrix, fn _, acc ->
+    Nx.dot(matrix, acc)
+  end)
+  |> Nx.sum(axes: [1])
+
+Nx.dot(tensor, final[0..5])
+```
