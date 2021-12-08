@@ -5,6 +5,7 @@
 ## Setup
 
 * [Stream recording](https://www.twitch.tv/videos/1225076231)
+* [Stream summary](https://www.youtube.com/watch?v=8_HGMrAZykw)
 
 ```elixir
 Mix.install(
