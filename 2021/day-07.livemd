@@ -1,0 +1,107 @@
+# Day 7
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1227829535)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.text("Please paste your input:")
+```
+
+```elixir
+line =
+  input
+  |> Kino.Input.read()
+  |> String.split(",")
+  |> Enum.map(&String.to_integer/1)
+```
+
+## Part 1
+
+```elixir
+{min, max} = Enum.min_max(line)
+
+min..max
+|> Enum.map(fn i ->
+  line |> Enum.map(fn j -> abs(j - i) end) |> Enum.sum()
+end)
+|> Enum.min()
+```
+
+```elixir
+sorted = Enum.sort(line)
+pos = div(length(line), 2)
+
+# The answer will be in the median
+sorted
+|> Enum.slice(pos, 2)
+|> Enum.map(fn i ->
+  Enum.map(line, fn j -> abs(j - i) end) |> Enum.sum()
+end)
+|> Enum.min()
+```
+
+## Part 2
+
+```elixir
+{min, max} = Enum.min_max(line)
+
+min..max
+|> Enum.map(fn i ->
+  line
+  |> Enum.map(fn j ->
+    n = abs(j - i)
+    n * (n + 1) / 2
+  end)
+  |> Enum.sum()
+end)
+|> Enum.min()
+```
+
+```elixir
+n = Enum.sum(line) / length(line)
+
+# The answer will be in the mean
+floor(n)..ceil(n)
+|> Enum.map(fn i ->
+  line
+  |> Enum.map(fn j ->
+    n = abs(j - i)
+    n * (n + 1) / 2
+  end)
+  |> Enum.sum()
+end)
+|> Enum.min()
+```
+
+## ???
+
+````elixir
+Kino.animate(300, true, fn
+  true ->
+    spaces = String.duplicate(" ", Enum.random(0..8))
+
+    {:cont,
+     Kino.Markdown.new(~s"""
+     ```
+     #{spaces}(||) (^,,,,°) (\\/)
+     ```
+     """), false}
+
+  false ->
+    spaces = String.duplicate(" ", Enum.random(0..8))
+
+    {:cont,
+     Kino.Markdown.new(~s"""
+     ```
+     #{spaces}(\\/) (°,,,,^) (||)
+     ```
+     """), true}
+end)
+````

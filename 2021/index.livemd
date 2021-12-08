@@ -12,3 +12,4 @@ Requires Livebook v0.4+.
 * [Day 4](day-04.livemd)
 * [Day 5](day-05.livemd)
 * [Day 6](day-06.livemd)
+* [Day 7](day-07.livemd)
