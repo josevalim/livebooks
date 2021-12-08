@@ -40,7 +40,7 @@ defmodule Recursion1 do
 end
 
 1..80
-|> Enum.reduce([0], fn _, fishes -> Recursion1.recur(fishes) end)
+|> Enum.reduce(fishes, fn _, fishes -> Recursion1.recur(fishes) end)
 |> length()
 ```
 
