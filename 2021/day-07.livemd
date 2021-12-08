@@ -1,3 +1,5 @@
+<!-- vim: syntax=markdown -->
+
 # Day 7
 
 ## Setup
@@ -82,14 +84,14 @@ end)
 
 ## ???
 
-```elixir
+````elixir
 Kino.animate(300, true, fn
   true ->
     spaces = String.duplicate(" ", Enum.random(0..8))
 
     {:cont,
      Kino.Markdown.new(~s"""
-     ```elixir
+     ```
      #{spaces}(||) (^,,,,°) (\\/)
      ```
      """), false}
@@ -99,9 +101,9 @@ Kino.animate(300, true, fn
 
     {:cont,
      Kino.Markdown.new(~s"""
-     ```elixir
+     ```
      #{spaces}(\\/) (°,,,,^) (||)
      ```
      """), true}
 end)
-```
+````
