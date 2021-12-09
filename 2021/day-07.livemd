@@ -4,8 +4,6 @@
 
 ## Setup
 
-* [Stream recording](https://www.twitch.tv/videos/1227829535)
-
 ```elixir
 Mix.install([
   {:kino, "~> 0.4.1"}
