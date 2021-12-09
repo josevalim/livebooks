@@ -61,8 +61,8 @@ parsed
   } = input
 
   [nine] = supersets.(zero_six_nine, four)
-  [zero] = supersets.(zero_six_nine, seven) -- [nine]
   [six] = almost_supersets.(zero_six_nine, seven)
+  [zero] = zero_six_nine -- [six, nine]
 
   [three] = supersets.(two_three_five, seven)
   [five] = almost_supersets.(two_three_five, six)
