@@ -1,0 +1,94 @@
+<!-- vim: syntax=markdown -->
+
+# Day 8
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1228693946)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+parsed =
+  input
+  |> Kino.Input.read()
+  |> String.split([" |\n", " | ", "\n"], trim: true)
+  |> Enum.chunk_every(2)
+  |> Enum.map(fn [input, output] ->
+    {input |> String.split() |> Enum.group_by(&byte_size/1, &String.to_charlist/1),
+     output |> String.split() |> Enum.map(&String.to_charlist/1)}
+  end)
+```
+
+## Part 1
+
+```elixir
+parsed
+|> Enum.map(fn {_input, output} ->
+  Enum.count(output, &(length(&1) in [2, 7, 3, 4]))
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+supersets = fn numbers, pivot ->
+  Enum.filter(numbers, &match?([], pivot -- &1))
+end
+
+almost_supersets = fn numbers, pivot ->
+  Enum.filter(numbers, &match?([_], pivot -- &1))
+end
+
+parsed
+|> Enum.map(fn {input, output} ->
+  %{
+    2 => [one],
+    3 => [seven],
+    4 => [four],
+    5 => two_three_five,
+    6 => zero_six_nine,
+    7 => [eight]
+  } = input
+
+  [nine] = supersets.(zero_six_nine, four)
+  [zero] = supersets.(zero_six_nine, seven) -- [nine]
+  [six] = almost_supersets.(zero_six_nine, seven)
+
+  [three] = supersets.(two_three_five, seven)
+  [five] = almost_supersets.(two_three_five, six)
+  [two] = two_three_five -- [three, five]
+
+  numbers = %{
+    Enum.sort(zero) => 0,
+    Enum.sort(one) => 1,
+    Enum.sort(two) => 2,
+    Enum.sort(three) => 3,
+    Enum.sort(four) => 4,
+    Enum.sort(five) => 5,
+    Enum.sort(six) => 6,
+    Enum.sort(seven) => 7,
+    Enum.sort(eight) => 8,
+    Enum.sort(nine) => 9
+  }
+
+  [d1, d2, d3, d4] = output
+
+  Integer.undigits([
+    numbers[Enum.sort(d1)],
+    numbers[Enum.sort(d2)],
+    numbers[Enum.sort(d3)],
+    numbers[Enum.sort(d4)]
+  ])
+end)
+|> Enum.sum()
+```
