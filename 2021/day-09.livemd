@@ -1,0 +1,109 @@
+<!-- vim: syntax=markdown -->
+
+# Day 9
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1228693946)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"},
+  {:vega_lite, "~> 0.1.2"}
+])
+
+alias VegaLite, as: Vl
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines = input |> Kino.Input.read() |> String.split("\n", trim: true)
+
+grid =
+  for {line, row} <- Enum.with_index(lines),
+      {number, col} <- Enum.with_index(String.to_charlist(line)),
+      into: %{} do
+    {{row, col}, number - ?0}
+  end
+
+low_points =
+  Enum.filter(grid, fn {{row, col}, value} ->
+    up = grid[{row - 1, col}]
+    down = grid[{row + 1, col}]
+    left = grid[{row, col - 1}]
+    right = grid[{row, col + 1}]
+    value < up and value < down and value < left and value < right
+  end)
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+low_points
+|> Enum.map(fn {_, value} -> value + 1 end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+defmodule Recursion do
+  def basin(point, grid) do
+    basin(MapSet.new(), point, grid)
+  end
+
+  defp basin(set, {row, col} = point, grid) do
+    if grid[point] in [9, nil] or point in set do
+      set
+    else
+      set
+      |> MapSet.put(point)
+      |> basin({row - 1, col}, grid)
+      |> basin({row + 1, col}, grid)
+      |> basin({row, col - 1}, grid)
+      |> basin({row, col + 1}, grid)
+    end
+  end
+end
+
+low_points
+|> Enum.map(fn {point, _} ->
+  point
+  |> Recursion.basin(grid)
+  |> MapSet.size()
+end)
+|> Enum.sort(:desc)
+|> Enum.take(3)
+|> Enum.product()
+```
+
+## Part 2 (VegaLite)
+
+* Source 1: https://github.com/miladamilli/Advent_of_Code_2021/blob/master/day09.livemd
+* Source 2: https://github.com/madlep/aoc_2021_elixir_livebook/blob/main/day09.livemd
+
+```elixir
+low_points_set = for {point, _} <- low_points, into: MapSet.new(), do: point
+
+Vl.new(width: 700, height: 700)
+|> Vl.data_from_values(
+  Enum.map(grid, fn {{x, y}, h} ->
+    %{"x" => x, "y" => y, "h" => h, "lowpoint" => {x, y} in low_points_set}
+  end)
+)
+|> Vl.encode_field(:x, "x", type: :quantitative, axis: false)
+|> Vl.encode_field(:y, "y", type: :quantitative, axis: false)
+|> Vl.layers([
+  Vl.new()
+  |> Vl.mark(:circle, size: 60, opacity: 0.8)
+  |> Vl.encode_field(:color, "h", type: :quantitative, scale: [range: ["red", "white", "green"]]),
+  Vl.new()
+  |> Vl.mark(:text, text: "🔥", size: 10)
+  |> Vl.transform(filter: "datum.lowpoint == true")
+])
+```
