@@ -1,0 +1,77 @@
+<!-- vim: syntax=markdown -->
+
+# Day 10
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1230624091)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Input:")
+```
+
+```elixir
+defmodule Syntax do
+  def parse(line), do: parse(line, [])
+
+  # Opening
+  defp parse(<<?(, rest::binary>>, stack), do: parse(rest, [?) | stack])
+  defp parse(<<?[, rest::binary>>, stack), do: parse(rest, [?] | stack])
+  defp parse(<<?{, rest::binary>>, stack), do: parse(rest, [?} | stack])
+  defp parse(<<?<, rest::binary>>, stack), do: parse(rest, [?> | stack])
+
+  # Closing
+  defp parse(<<char, rest::binary>>, [char | stack]), do: parse(rest, stack)
+
+  # Base/error cases
+  defp parse(<<char, _rest::binary>>, _stack), do: {:corrupted, char}
+  defp parse(<<>>, []), do: :ok
+  defp parse(<<>>, stack), do: {:incomplete, stack}
+end
+
+lines = input |> Kino.Input.read() |> String.split("\n", trim: true)
+:ok
+```
+
+## Part 1
+
+```elixir
+points = %{
+  ?) => 3,
+  ?] => 57,
+  ?} => 1197,
+  ?> => 25137
+}
+
+Enum.sum(
+  for line <- lines,
+      {:corrupted, char} <- [Syntax.parse(line)],
+      do: Map.fetch!(points, char)
+)
+```
+
+## Part 2
+
+```elixir
+points = %{
+  ?) => 1,
+  ?] => 2,
+  ?} => 3,
+  ?> => 4
+}
+
+scores =
+  Enum.sort(
+    for line <- lines,
+        {:incomplete, chars} <- [Syntax.parse(line)],
+        do: Enum.reduce(chars, 0, fn char, acc -> acc * 5 + Map.fetch!(points, char) end)
+  )
+
+Enum.fetch!(scores, div(length(scores), 2))
+```
