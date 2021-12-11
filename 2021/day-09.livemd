@@ -4,7 +4,7 @@
 
 ## Setup
 
-* [Stream recording](https://www.twitch.tv/videos/1228693946)
+* [Stream recording](https://www.twitch.tv/videos/1229612184)
 
 ```elixir
 Mix.install([
