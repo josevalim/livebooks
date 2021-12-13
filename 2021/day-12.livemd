@@ -1,0 +1,113 @@
+<!-- vim: syntax=markdown -->
+
+# Day 12
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1232447964)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Input")
+```
+
+```elixir
+edges =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reduce(%{}, fn line, acc ->
+    [left, right] = String.split(line, "-")
+    acc = Map.update(acc, left, [right], &[right | &1])
+
+    if left == "start" or right == "end" do
+      acc
+    else
+      Map.update(acc, right, [left], &[left | &1])
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Once do
+  def recur(edges) do
+    recur(edges["start"], edges, MapSet.new(), ["start"], 0)
+  end
+
+  defp recur(["end" | caves], edges, seen, path, count) do
+    recur(caves, edges, seen, path, count + 1)
+  end
+
+  defp recur([cave | caves], edges, seen, path, count) do
+    count =
+      cond do
+        cave == "start" or cave in seen ->
+          count
+
+        lowercased?(cave) ->
+          recur(edges[cave], edges, MapSet.put(seen, cave), [cave | path], count)
+
+        true ->
+          recur(edges[cave], edges, seen, [cave | path], count)
+      end
+
+    recur(caves, edges, seen, path, count)
+  end
+
+  defp recur([], _edges, _seen, _path, count) do
+    count
+  end
+
+  defp lowercased?(cave), do: String.downcase(cave, :ascii) == cave
+end
+
+Once.recur(edges)
+```
+
+## Part 2
+
+```elixir
+defmodule Twice do
+  def recur(edges) do
+    recur(edges["start"], edges, MapSet.new(), false, ["start"], 0)
+  end
+
+  defp recur(["end" | caves], edges, seen, once?, path, count) do
+    recur(caves, edges, seen, once?, path, count + 1)
+  end
+
+  defp recur([cave | caves], edges, seen, once?, path, count) do
+    count =
+      cond do
+        cave == "start" or (cave in seen and once?) ->
+          count
+
+        cave in seen ->
+          recur(edges[cave], edges, MapSet.put(seen, cave), true, [cave | path], count)
+
+        lowercased?(cave) ->
+          recur(edges[cave], edges, MapSet.put(seen, cave), once?, [cave | path], count)
+
+        true ->
+          recur(edges[cave], edges, seen, once?, [cave | path], count)
+      end
+
+    recur(caves, edges, seen, once?, path, count)
+  end
+
+  defp recur([], _edges, _seen, _path, _once?, count) do
+    count
+  end
+
+  defp lowercased?(cave), do: String.downcase(cave, :ascii) == cave
+end
+
+Twice.recur(edges)
+```
