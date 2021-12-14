@@ -1,0 +1,122 @@
+<!-- vim: syntax=markdown -->
+
+# Day 13
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1233396823)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"},
+  {:vega_lite, "~> 0.1.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Input:")
+```
+
+```elixir
+{dots, folds} =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.split_while(&(not String.starts_with?(&1, "fold along ")))
+
+paper =
+  Enum.map(dots, fn dot ->
+    [x, y] = String.split(dot, ",")
+    {String.to_integer(x), String.to_integer(y)}
+  end)
+
+folds =
+  Enum.map(folds, fn "fold along " <> fold ->
+    [dir, fold] = String.split(fold, "=")
+    {String.to_atom(dir), String.to_integer(fold)}
+  end)
+
+folder = fn
+  :x, fold -> fn {x, y} -> {fold - abs(x - fold), y} end
+  :y, fold -> fn {x, y} -> {x, fold - abs(y - fold)} end
+end
+```
+
+## Part 1
+
+```elixir
+folds
+|> Enum.take(1)
+|> Enum.reduce(paper, fn {dir, fold}, paper ->
+  Enum.map(paper, folder.(dir, fold))
+end)
+|> Enum.uniq()
+|> length()
+```
+
+## Part 2
+
+```elixir
+folded =
+  Enum.reduce(folds, paper, fn {dir, fold}, paper ->
+    Enum.map(paper, folder.(dir, fold))
+  end)
+
+{width, _} = Enum.max_by(folded, &elem(&1, 0))
+{_, height} = Enum.max_by(folded, &elem(&1, 1))
+
+grid = MapSet.new(folded)
+
+for y <- 0..height do
+  for x <- 0..width do
+    if {x, y} in grid do
+      IO.write(" # ")
+    else
+      IO.write("   ")
+    end
+  end
+
+  IO.puts("")
+end
+```
+
+## VegaLite
+
+* Source: https://github.com/miladamilli/Advent_of_Code_2021/blob/master/day13.livemd
+
+```elixir
+alias VegaLite, as: Vl
+```
+
+```elixir
+paper_to_values = fn paper ->
+  Enum.map(paper, fn {x, y} -> %{x: x, y: -y} end)
+end
+
+graph =
+  Vl.new(width: 800, height: 150)
+  |> Vl.config(view: [stroke: :transparent])
+  |> Vl.mark(:square, opacity: 0.4, size: 900)
+  |> Vl.data_from_values(paper_to_values.(paper))
+  |> Vl.encode_field(:x, "x", type: :quantitative, axis: false)
+  |> Vl.encode_field(:y, "y", type: :quantitative, axis: false)
+  |> Vl.encode_field(:color, "x",
+    type: :quantitative,
+    scale: [range: ["#27e3c8", "#b25ae7"]],
+    legend: false
+  )
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+Enum.reduce(folds, paper, fn {dir, fold}, paper ->
+  paper = Enum.map(paper, folder.(dir, fold))
+
+  Process.sleep(500)
+  Kino.VegaLite.clear(graph)
+  Kino.VegaLite.push_many(graph, paper_to_values.(paper))
+
+  paper
+end)
+
+:ok
+```
