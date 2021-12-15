@@ -1,0 +1,80 @@
+<!-- vim: syntax=markdown -->
+
+# Day 14
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1234309834)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Input")
+```
+
+## Part 1
+
+```elixir
+[template | lines] = input |> Kino.Input.read() |> String.split("\n", trim: true)
+
+# Use null byte for the last pair as it never matches and we will discard later.
+template = template |> String.to_charlist() |> Enum.chunk_every(2, 1, [0])
+pairs = Map.new(lines, fn <<i1, i2, " -> ", o>> -> {[i1, i2], o} end)
+
+result =
+  Enum.reduce(1..10, template, fn _, polymer ->
+    Enum.flat_map(polymer, fn [i1, i2] = pair ->
+      case pairs do
+        %{^pair => o} -> [[i1, o], [o, i2]]
+        %{} -> [pair]
+      end
+    end)
+  end)
+  |> Enum.map(&hd/1)
+
+{{_, min}, {_, max}} = result |> Enum.frequencies() |> Enum.min_max_by(&elem(&1, 1))
+max - min
+```
+
+## Part 2
+
+```elixir
+[template | lines] = input |> Kino.Input.read() |> String.split("\n", trim: true)
+
+# Use null byte for the last pair as it never matches and we will discard later.
+template =
+  template
+  |> String.to_charlist()
+  |> Enum.chunk_every(2, 1, [0])
+  |> Enum.frequencies()
+
+pairs = Map.new(lines, fn <<i1, i2, " -> ", o>> -> {[i1, i2], o} end)
+
+{{_, mins}, {_, maxes}} =
+  1..40
+  |> Enum.reduce(template, fn _, polymer ->
+    Enum.reduce(polymer, %{}, fn {[i1, i2] = pair, count}, acc ->
+      case pairs do
+        %{^pair => o} ->
+          acc
+          |> Map.update([i1, o], count, &(&1 + count))
+          |> Map.update([o, i2], count, &(&1 + count))
+
+        %{} ->
+          Map.put(acc, pair, count)
+      end
+    end)
+  end)
+  |> Enum.group_by(&hd(elem(&1, 0)), &elem(&1, 1))
+  |> Enum.min_max_by(fn {_, counts} -> Enum.sum(counts) end)
+
+Enum.sum(maxes) - Enum.sum(mins)
+```
+
+## Other approaches
+
+* Nx: https://github.com/rhbvkleef/aoc2021/blob/master/lib/solutions/year2021/day14.ex
