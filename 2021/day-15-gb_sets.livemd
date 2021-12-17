@@ -1,0 +1,129 @@
+<!-- vim: syntax=markdown -->
+
+# Day 15
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1235179913)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Input")
+```
+
+```elixir
+defmodule PQ do
+  def new() do
+    []
+  end
+
+  def add([{cur_weight, _} | _] = list, value, weight)
+      when weight <= cur_weight,
+      do: [{weight, value} | list]
+
+  def add([head | tail], value, weight),
+    do: [head | add(tail, value, weight)]
+
+  def add([], value, weight),
+    do: [{weight, value}]
+end
+
+defmodule Dijkstra do
+  def shortest(graph) do
+    distances = %{{0, 0} => 0}
+    queue = PQ.add(PQ.new(), {0, 0}, 0)
+    target = Enum.max(Map.keys(graph))
+    recur(graph, distances, queue, target)
+  end
+
+  defp recur(graph, distances, queue, target) do
+    [{_, {row, col} = u} | queue] = queue
+
+    if u == target do
+      distances[u]
+    else
+      neighbours = [{row - 1, col}, {row + 1, col}, {row, col - 1}, {row, col + 1}]
+
+      {distances, queue} =
+        for v <- neighbours,
+            Map.has_key?(graph, v),
+            distance_from_source = distances[u] + graph[v],
+            distance_from_source < Map.get(distances, v, :infinity),
+            reduce: {distances, queue} do
+          {distances, queue} ->
+            distances = Map.put(distances, v, distance_from_source)
+            queue = PQ.add(queue, v, distance_from_source)
+            {distances, queue}
+        end
+
+      recur(graph, distances, queue, target)
+    end
+  end
+end
+
+lines = input |> Kino.Input.read() |> String.split("\n", trim: true)
+
+grid =
+  for {line, row} <- Enum.with_index(lines, 0),
+      {char, col} <- Enum.with_index(String.to_charlist(line)),
+      into: %{} do
+    {{row, col}, char - ?0}
+  end
+```
+
+## Part 1
+
+```elixir
+Dijkstra.shortest(grid)
+```
+
+## Part 2
+
+```elixir
+defmodule Grid do
+  def expand(grid, n) do
+    {height, width} = Enum.max(Map.keys(grid))
+
+    {grid, width, _} =
+      for _ <- 2..n, reduce: {grid, width + 1, 1} do
+        {grid, offset, bump} ->
+          grid =
+            for row <- 0..height, col <- 0..width, reduce: grid do
+              acc ->
+                value = grid[{row, col}] + bump
+                value = if value >= 10, do: value - 9, else: value
+                Map.put(acc, {row, col + offset}, value)
+            end
+
+          {grid, offset + width + 1, bump + 1}
+      end
+
+    width = width - 1
+
+    {grid, _, _} =
+      for _ <- 2..n, reduce: {grid, height + 1, 1} do
+        {grid, offset, bump} ->
+          grid =
+            for row <- 0..height, col <- 0..width, reduce: grid do
+              acc ->
+                value = grid[{row, col}] + bump
+                value = if value >= 10, do: value - 9, else: value
+                Map.put(acc, {row + offset, col}, value)
+            end
+
+          {grid, offset + height + 1, bump + 1}
+      end
+
+    grid
+  end
+end
+
+grid
+|> Grid.expand(5)
+|> Dijkstra.shortest()
+```
