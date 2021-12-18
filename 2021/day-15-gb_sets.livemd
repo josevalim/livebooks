@@ -17,51 +17,34 @@ input = Kino.Input.textarea("Input")
 ```
 
 ```elixir
-defmodule PQ do
-  def new() do
-    []
-  end
-
-  def add([{cur_weight, _} | _] = list, value, weight)
-      when weight <= cur_weight,
-      do: [{weight, value} | list]
-
-  def add([head | tail], value, weight),
-    do: [head | add(tail, value, weight)]
-
-  def add([], value, weight),
-    do: [{weight, value}]
-end
-
 defmodule Dijkstra do
   def shortest(graph) do
-    distances = %{{0, 0} => 0}
-    queue = PQ.add(PQ.new(), {0, 0}, 0)
+    seen = MapSet.new([{0, 0}])
+    queue = :gb_sets.insert({0, {0, 0}}, :gb_sets.empty())
     target = Enum.max(Map.keys(graph))
-    recur(graph, distances, queue, target)
+    recur(graph, seen, queue, target)
   end
 
-  defp recur(graph, distances, queue, target) do
-    [{_, {row, col} = u} | queue] = queue
+  defp recur(graph, seen, queue, target) do
+    {{dist, {row, col} = u}, queue} = :gb_sets.take_smallest(queue)
 
     if u == target do
-      distances[u]
+      dist
     else
       neighbours = [{row - 1, col}, {row + 1, col}, {row, col - 1}, {row, col + 1}]
 
-      {distances, queue} =
+      {seen, queue} =
         for v <- neighbours,
             Map.has_key?(graph, v),
-            distance_from_source = distances[u] + graph[v],
-            distance_from_source < Map.get(distances, v, :infinity),
-            reduce: {distances, queue} do
-          {distances, queue} ->
-            distances = Map.put(distances, v, distance_from_source)
-            queue = PQ.add(queue, v, distance_from_source)
-            {distances, queue}
+            not MapSet.member?(seen, v),
+            reduce: {seen, queue} do
+          {seen, queue} ->
+            seen = MapSet.put(seen, v)
+            queue = :gb_sets.insert({dist + graph[v], v}, queue)
+            {seen, queue}
         end
 
-      recur(graph, distances, queue, target)
+      recur(graph, seen, queue, target)
     end
   end
 end
