@@ -1,0 +1,162 @@
+<!-- vim: syntax=markdown -->
+
+# Day 16
+
+## Setup
+
+* [Stream recording](https://www.twitch.tv/videos/1236137267)
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"}
+])
+```
+
+```elixir
+input = Kino.Input.text("Input")
+```
+
+## Part 1
+
+```elixir
+import Bitwise
+
+defmodule Packet do
+  def decode(packet), do: decode_packet(packet, [])
+
+  defp decode_packet(<<version::3, rest::bits>>, versions),
+    do: decode_type(rest, [version | versions])
+
+  ## type
+
+  defp decode_type(<<4::3, rest::bits>>, versions),
+    do: decode_literal(rest, 0, versions)
+
+  defp decode_type(<<_type::3, 0::1, len::15, subpackets::size(len)-bits, rest::bits>>, versions),
+    do: {rest, decode_operator_len(subpackets, versions)}
+
+  defp decode_type(<<_type::3, 1::1, count::11, rest::bits>>, versions),
+    do: decode_operator_count(count, rest, versions)
+
+  ## literal
+
+  defp decode_literal(<<1::1, part::4, rest::bits>>, acc, versions),
+    do: decode_literal(rest, (acc <<< 4) + part, versions)
+
+  defp decode_literal(<<0::1, _part::4, rest::bits>>, _acc, versions),
+    # (acc <<< 4) + part
+    do: {rest, versions}
+
+  ## length
+
+  defp decode_operator_len("", versions) do
+    versions
+  end
+
+  defp decode_operator_len(subpackets, versions) do
+    {rest, versions} = decode_packet(subpackets, versions)
+    decode_operator_len(rest, versions)
+  end
+
+  ## count
+
+  defp decode_operator_count(0, rest, versions), do: {rest, versions}
+
+  defp decode_operator_count(count, rest, versions) do
+    {rest, versions} = decode_packet(rest, versions)
+    decode_operator_count(count - 1, rest, versions)
+  end
+end
+
+IO.inspect(Packet.decode(Base.decode16!("D2FE28")))
+IO.inspect(Packet.decode(Base.decode16!("C200B40A82")))
+IO.inspect(Packet.decode(Base.decode16!("38006F45291200")))
+IO.inspect(Packet.decode(Base.decode16!("EE00D40C823060")))
+IO.inspect(Packet.decode(Base.decode16!("8A004A801A8002F478")))
+IO.inspect(Packet.decode(Base.decode16!("620080001611562C8802118E34")))
+IO.inspect(Packet.decode(Base.decode16!("C0015000016115A2E0802F182340")))
+IO.inspect(Packet.decode(Base.decode16!("A0016C880162017C3686B18A3D4780")))
+
+input
+|> Kino.Input.read()
+|> Base.decode16!()
+|> Packet.decode()
+|> then(fn {_rest, versions} -> Enum.sum(versions) end)
+
+Access.fetch(:foo, :bar)
+```
+
+## Part 2
+
+```elixir
+import Bitwise
+
+defmodule BITS do
+  def decode(packet) do
+    {_, [result]} = decode_packet(packet, [])
+    result
+  end
+
+  defp decode_packet(<<_version::3, rest::bits>>, numbers),
+    do: decode_type(rest, numbers)
+
+  ## type
+
+  defp decode_type(<<4::3, rest::bits>>, numbers),
+    do: decode_literal(rest, 0, numbers)
+
+  defp decode_type(<<type::3, 0::1, len::15, subpackets::size(len)-bits, rest::bits>>, numbers) do
+    operands = decode_operator_len(subpackets, [])
+    {rest, [handle_type(type, operands) | numbers]}
+  end
+
+  defp decode_type(<<type::3, 1::1, count::11, rest::bits>>, numbers) do
+    {rest, operands} = decode_operator_count(count, rest, [])
+    {rest, [handle_type(type, operands) | numbers]}
+  end
+
+  ## literal
+
+  defp decode_literal(<<1::1, part::4, rest::bits>>, acc, numbers),
+    do: decode_literal(rest, (acc <<< 4) + part, numbers)
+
+  defp decode_literal(<<0::1, part::4, rest::bits>>, acc, numbers),
+    do: {rest, [(acc <<< 4) + part | numbers]}
+
+  ## length
+
+  defp decode_operator_len("", numbers), do: numbers
+
+  defp decode_operator_len(subpackets, numbers) do
+    {rest, numbers} = decode_packet(subpackets, numbers)
+    decode_operator_len(rest, numbers)
+  end
+
+  ## count
+
+  defp decode_operator_count(0, rest, numbers), do: {rest, numbers}
+
+  defp decode_operator_count(count, rest, numbers) do
+    {rest, numbers} = decode_packet(rest, numbers)
+    decode_operator_count(count - 1, rest, numbers)
+  end
+
+  defp handle_type(0, numbers), do: Enum.sum(numbers)
+  defp handle_type(1, numbers), do: Enum.product(numbers)
+  defp handle_type(2, numbers), do: Enum.min(numbers)
+  defp handle_type(3, numbers), do: Enum.max(numbers)
+  defp handle_type(5, [second, first]) when first > second, do: 1
+  defp handle_type(6, [second, first]) when first < second, do: 1
+  defp handle_type(7, [second, first]) when first == second, do: 1
+  defp handle_type(_, [_, _]), do: 0
+end
+
+IO.inspect(BITS.decode(Base.decode16!("C200B40A82")))
+IO.inspect(BITS.decode(Base.decode16!("04005AC33890")))
+IO.inspect(BITS.decode(Base.decode16!("9C0141080250320F1802104A08")))
+
+input
+|> Kino.Input.read()
+|> Base.decode16!()
+|> BITS.decode()
+```

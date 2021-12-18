@@ -1,0 +1,122 @@
+<!-- vim: syntax=markdown -->
+
+# Day 17
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.1"},
+  {:vega_lite, "~> 0.1.2"}
+])
+```
+
+## Part 1
+
+```elixir
+range_x = 20..30
+range_y = -10..-5
+
+range_x = 153..199
+range_y = -114..-75
+
+min_x..max_x = range_x
+min_y..max_y = range_y
+
+y_trajectory = fn vy ->
+  Stream.iterate(0, &(&1 + 1))
+  |> Stream.transform({0, vy}, fn _, {y, vy} ->
+    {[y], {y + vy, vy - 1}}
+  end)
+  |> Stream.take_while(fn y -> y >= min_y end)
+end
+
+vy_hits_box? = fn vy ->
+  Enum.at(y_trajectory.(vy), -1) in range_y
+end
+
+highest_vy =
+  0..abs(min_y + 1)
+  |> Enum.filter(vy_hits_box?)
+  |> Enum.at(-1)
+
+Enum.max(y_trajectory.(highest_vy))
+```
+
+## Part 2
+
+```elixir
+simulate = fn vx, vy ->
+  Stream.iterate(0, &(&1 + 1))
+  |> Stream.transform({0, 0, vx, vy}, fn _, {x, y, vx, vy} ->
+    {[{x, y}], {x + vx, y + vy, max(vx - 1, 0), vy - 1}}
+  end)
+  |> Stream.take_while(fn {x, y} -> x <= max_x and y >= min_y end)
+end
+
+vxy_hits_box? = fn vx, vy ->
+  {x, y} = Enum.at(simulate.(vx, vy), -1)
+  x in range_x and y in range_y
+end
+
+possible_vxy =
+  for vx <- 0..max_x,
+      vy <- min_y..abs(min_y + 1),
+      vxy_hits_box?.(vx, vy),
+      do: {vx, vy}
+
+Enum.count(possible_vxy)
+```
+
+## VegaLite
+
+* Source: https://gist.github.com/jonatanklosko/7f2e7f3d6ca6fc2a7641999c59638262
+
+```elixir
+alias VegaLite, as: Vl
+```
+
+```elixir
+{highest_vx, ^highest_vy} = List.keyfind(possible_vxy, highest_vy, 1)
+highest_y = Enum.max(y_trajectory.(highest_vy))
+
+graph =
+  Vl.new(width: 600, height: 600)
+  |> Vl.layers([
+    Vl.new()
+    |> Vl.mark(:circle, size: 10, fill: "black")
+    |> Vl.encode_field(:x, "x",
+      type: :quantitative,
+      scale: [domain: [0, max_x]],
+      axis: [orient: "top", title: "x"]
+    )
+    |> Vl.encode_field(:y, "y",
+      type: :quantitative,
+      scale: [domain: [min_y, highest_y]],
+      axis: [title: "y"]
+    ),
+    Vl.new()
+    |> Vl.data_from_values([%{x1: min_x, x2: max_x, y1: min_y, y2: max_y}])
+    |> Vl.mark(:rect, fill: nil, stroke: "tomato", stroke_width: 2)
+    |> Vl.encode_field(:x, "x1", type: :quantitative)
+    |> Vl.encode_field(:x2, "x2")
+    |> Vl.encode_field(:y, "y1", type: :quantitative)
+    |> Vl.encode_field(:y2, "y2")
+  ])
+  |> Vl.resolve(:scale, x: :shared, y: :shared)
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+# {random_vx, random_vy} =
+#   possible_vxy
+#   |> Enum.filter(fn {vx, vy} ->
+#     {vx, vy} = Enum.max_by(simulate.(vx, vy), &elem(&1, 1))
+#     vx < min_x and vy > 0
+#   end)
+#   |> Enum.random()
+
+for {x, y} <- simulate.(highest_vx, highest_vy) do
+  Kino.VegaLite.push(graph, %{x: x, y: y})
+  Process.sleep(10)
+end
+```
