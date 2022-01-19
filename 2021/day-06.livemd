@@ -9,8 +9,8 @@
 
 ```elixir
 Mix.install([
-  {:kino, "~> 0.4.1"},
-  {:nx, github: "elixir-nx/nx", sparse: "nx"},
+  {:kino, "~> 0.5.0"},
+  {:nx, "~> 0.1.0"},
   {:vega_lite, "~> 0.1.1"}
 ])
 ```
