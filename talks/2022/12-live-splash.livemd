@@ -1,0 +1,144 @@
+# LIVE 2022 - Splash
+
+```elixir
+# TODO: Remove :kino_vega_lite before running the notebook
+# TODO: Currently requires Kino from GitHub for distributed tracing
+Mix.install([
+  {:kino, "~> 0.7.0", github: "livebook-dev/kino"}
+])
+```
+
+## Elixir
+
+Elixir is a functional and dynamic programming languge that runs on the Erlang VM:
+
+```elixir
+list = ["hello", 123, :banana]
+```
+
+Elixir data structures are immutable by default:
+
+```elixir
+List.delete(list, 123)
+```
+
+```elixir
+list
+```
+
+Elixir supports pattern-matching, polymorphism via protocols, meta-programming, and more. But today, we will focus on its concurrency features. In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+
+```elixir
+for _ <- 1..1_000_000 do
+  spawn(fn -> :ok end)
+end
+```
+
+Process communicate by sending messages between them:
+
+```elixir
+child =
+  spawn(fn ->
+    receive do
+      {:ping, caller} -> send(caller, :pong)
+    end
+  end)
+
+send(child, {:ping, self()})
+
+receive do
+  :pong -> :it_worked!
+end
+```
+
+And Livebook can helps us see how processes communicate between them:
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  child =
+    spawn(fn ->
+      receive do
+        {:ping, caller} -> send(caller, :pong)
+      end
+    end)
+
+  send(child, {:ping, self()})
+
+  receive do
+    :pong -> :it_worked!
+  end
+end)
+```
+
+Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  1..4
+  |> Task.async_stream(
+    fn _ -> Process.sleep(Enum.random(100..300)) end,
+    max_concurrency: 4
+  )
+  |> Stream.run()
+end)
+```
+
+Messages can also be distributed across nodes. Let's try to execute something in the `Distributed` module:
+
+```elixir
+Distributed.hello_world()
+```
+
+But what if `Distributed` is [defined on another notebook](12-live-splash-distributed.livemd)?
+
+```elixir
+node =
+  Kino.Input.text("Node")
+  |> Kino.render()
+  |> Kino.Input.read()
+  |> String.to_atom()
+
+cookie =
+  Kino.Input.text("Cookie")
+  |> Kino.render()
+  |> Kino.Input.read()
+  |> String.to_atom()
+
+Node.set_cookie(node, cookie)
+:erpc.call(node, Distributed, :hello_world, [])
+```
+
+Enough about Elixir, let's talk Livebook!
+
+## Livebook: truly reproducible workflows
+
+What makes notebooks hard to reproduce?
+
+<div>
+
+```mermaid
+graph TD;
+    root[Sources of irreproducibility]
+    ooo[Out of order execution];
+    gms[Global mutable state];
+    root-->ooo;
+    root-->gms;
+```
+</div>
+
+```elixir
+
+```
+
+Visually speaking:
+
+## TODO
+
+* Code completion, mouse over, etc
+* Inspectable source
+* Learn section
+* Computational notebooks
+
+<!-- livebook:{"break_markdown":true} -->
+
+

@@ -1,0 +1,13 @@
+# LIVE 2022 - Distributed
+
+## Section
+
+```elixir
+defmodule Distributed do
+  def hello_world do
+    IO.puts("Hello world from another notebook!")
+  end
+end
+
+{node(), Node.get_cookie()}
+```
