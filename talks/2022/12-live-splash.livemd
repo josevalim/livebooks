@@ -8,7 +8,7 @@ Mix.install([
 ])
 ```
 
-## Elixir
+## Intro to Elixir
 
 Elixir is a functional and dynamic programming languge that runs on the Erlang VM:
 
@@ -114,31 +114,281 @@ Enough about Elixir, let's talk Livebook!
 
 What makes notebooks hard to reproduce?
 
-<div>
+<div style="height: 150px">
+
+</div>
 
 ```mermaid
-graph TD;
-    root[Sources of irreproducibility]
+flowchart TD;
+    root[Sources of irreproducibility];
     ooo[Out of order execution];
     gms[Global mutable state];
     root-->ooo;
     root-->gms;
 ```
+
+<div style="height: 150px">
+
 </div>
-
-```elixir
-
-```
-
-Visually speaking:
-
-## TODO
-
-* Code completion, mouse over, etc
-* Inspectable source
-* Learn section
-* Computational notebooks
 
 <!-- livebook:{"break_markdown":true} -->
 
+For example, in Jupyter notebooks, the execution flow is:
 
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  state--read #2 -->c1--write #2-->state;
+  state--read #3 -->c2--write #3-->state;
+  state--read #1 -->c3--write #1-->state;
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Notebooks may linearize cells via static and dynamic analysis:
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c3[Cell C];
+  c1[Cell A];
+  c2[Cell B];
+
+  state--read #1 -->c3--write #1-->state;
+  state--read #2 -->c1;
+  c2-- write #2 -->state;
+  c1-->c2;
+
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+However, even if ordering is employed, **they are still stateful**. The following code, in most notebooks, will increment x:
+
+```elixir
+x = 1
+```
+
+```elixir
+x = x + 1
+```
+
+Livebook execution model is fully sequential and there is no global mutable state. It looks like this:
+
+<div style="height: 80px">
+
+</div>
+
+```mermaid
+flowchart TD;
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  c1-->c2-->c3;
+```
+
+<div style="height: 80px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+By tracking inputs and outputs with a pinch of static analysis, we can cache evaluation results and track when cells become stale.
+
+<!-- livebook:{"branch_parent_index":1} -->
+
+## Livebook: branched sections
+
+We can also branch a new section at the end of a section for concurrent execution:
+
+```mermaid
+flowchart TD;
+  subgraph Section #1
+    c1[Cell A];
+    c2[Cell B];
+    c1-->c2;
+  end
+  subgraph Branch from #1
+    c5[Cell E];
+    c6[Cell F];
+    c2-->c5;
+    c5-->c6;
+  end
+  subgraph Section #2
+    c3[Cell C];
+    c4[Cell D];
+    c2-->c3;
+    c3-->c4;
+  end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+
+for _ <- Stream.interval(1000) do
+  Kino.Frame.render(frame, :erlang.memory())
+end
+```
+
+## Kino: extensibility model
+
+Your code and all interactive widgets run in a separate Erlang VM instance using the distribution channels we learned earlier. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides.
+
+We have two kinds of outputs: static and live.
+
+Let's build a counter as a live output:
+
+```elixir
+defmodule CounterExample do
+  use Kino.JS
+  use Kino.JS.Live
+
+  def new(count) do
+    Kino.JS.Live.new(__MODULE__, count)
+  end
+
+  @impl true
+  def init(count, ctx) do
+    {:ok, assign(ctx, count: count)}
+  end
+
+  @impl true
+  def handle_connect(ctx) do
+    {:ok, ctx.assigns.count, ctx}
+  end
+
+  @impl true
+  def handle_event("bump", _, ctx) do
+    ctx = update(ctx, :count, &(&1 + 1))
+    broadcast_event(ctx, "update", ctx.assigns.count)
+    {:noreply, ctx}
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, count) {
+      ctx.root.innerHTML = `
+        <div id="count"></div>
+        <button id="bump" style="margin: 2px 0;">Bump</button>
+      `;
+
+      const countEl = document.getElementById("count");
+      const bumpEl = document.getElementById("bump");
+
+      countEl.innerHTML = count;
+
+      ctx.handleEvent("update", (count) => {
+        countEl.innerHTML = count;
+      });
+
+      bumpEl.addEventListener("click", (event) => {
+        ctx.pushEvent("bump");
+      });
+    }
+    """
+  end
+end
+
+CounterExample.new(0)
+```
+
+If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to even running games inside your notebooks!
+
+Each "live" output is a separate process and they can all run concurrently. Here is how it looks like in practice:
+
+<div style="height: 60px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  subgraph Clients
+    b1((Browser #1));
+    b2((Browser #2));
+  end
+
+  subgraph Livebook
+    l[Session];
+    b1--WebSockets-->l;
+    b2--WebSockets-->l;
+  end
+
+  subgraph Runtime
+    o1[Output #1];
+    o2[Output #2];
+    l--Erlang distribution-->o1;
+    l--Erlang distribution-->o2;
+  end
+```
+
+## Smart cells
+
+The Erlang provides a great set of tools for observability. Let's gather information about all processes:
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+But how to plot it?
+
+Inspired by the work on ["mage" by Mary Beth Kery and co](https://arxiv.org/abs/2009.10643), Livebook has smart cells:
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div h="h">
+
+Smart cells are low-floor and high-ceiling:
+
+  * task driven
+  * can be used as a learning tool
+  * and also for automating expert workflows
+</div>
+
+## Live programming
+
+* dbg with evision example
+* doctests
+
+## Other topics
+
+### Not covered today
+
+* The notebook source is a subset of Markdown. Get it here: https://github.com/josevalim/livebooks
+* Once installed, the "Learn" section contains several example notebooks
+* The editor supports code completion, documentation on mouse over, and more!
+* Notebooks can connect to production nodes to automate, produce diagnostics, etc.
+
+### Roadmap
+
+* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9)
+* Smart cells for Data and Machine Learning
+* Usable Live programming (as per Usable Live Programming, Sean McDirmid, SPLASH Onward! 2013)
