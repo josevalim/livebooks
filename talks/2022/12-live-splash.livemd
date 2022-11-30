@@ -364,14 +364,13 @@ Inspired by the work on ["mage" by Mary Beth Kery and co](https://arxiv.org/abs/
 
 <!-- livebook:{"break_markdown":true} -->
 
-<div h="h">
+<div style="height: 200px"></div>
 
-Smart cells are low-floor and high-ceiling:
+Smart cells task-driven workflows built on top of Kino live outputs. Smart cells run as part of your code and it can be installed as an other Elixir package in [Hex.pm](https://hex.pm/).
 
-  * task driven
-  * can be used as a learning tool
-  * and also for automating expert workflows
-</div>
+Besides the built-in Smart cells, you will find community examples for talking to APIs, building slideshows, running quizzes, and more.
+
+PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interface or a text editor, as long as it solves the problem at hand, it is _code_.
 
 ## Live programming
 
