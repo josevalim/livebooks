@@ -1,4 +1,6 @@
-My solutions for Advent of Code done with [Livebook](https://livebook.dev/).
+# Advent of Code.
+
+My solutions for [Advent of Code](https://adventofcode.com/).
 
 ## 2021
 
