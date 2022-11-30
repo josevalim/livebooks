@@ -1,0 +1,224 @@
+# Elixir v1.14 + Livebook
+
+```elixir
+Mix.install([
+  {:kino, github: "livebook-dev/kino", override: true},
+  {:kino_vega_lite, "~> 0.1.3"},
+  {:kino_db, "~> 0.1.2"},
+  {:postgrex, "~> 0.16.3"}
+])
+```
+
+## Autocompletion
+
+Hello.
+
+```elixir
+
+```
+
+## Processes
+
+```elixir
+self()
+```
+
+```elixir
+parent = self()
+
+child =
+  spawn(fn ->
+    receive do
+      :ping ->
+        Process.sleep(2_000)
+        send(parent, :pong)
+    end
+  end)
+
+send(child, :ping)
+
+receive do
+  :pong -> :funcionou
+end
+```
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  parent = self()
+
+  child =
+    spawn(fn ->
+      receive do
+        :ping -> send(parent, :pong)
+      end
+    end)
+
+  send(child, :ping)
+
+  receive do
+    :pong -> :ponged!
+  end
+end)
+```
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  1..4
+  |> Task.async_stream(
+    fn i ->
+      Process.sleep(Enum.random(100..300))
+      i
+    end,
+    max_concurrency: 4
+  )
+  |> Stream.run()
+end)
+```
+
+## Supervisors
+
+```elixir
+{:ok, supervisor} =
+  Supervisor.start_link(
+    [
+      {Task, fn -> Process.sleep(:infinity) end},
+      {Agent, fn -> [] end}
+    ],
+    strategy: :one_for_one
+  )
+```
+
+```elixir
+Kino.Process.render_sup_tree(supervisor)
+```
+
+```elixir
+supervisor
+```
+
+```elixir
+Kino.Process.render_app_tree(:kino)
+```
+
+```elixir
+:kino
+```
+
+```elixir
+Kino.Supervisor
+```
+
+## dbg
+
+```elixir
+"Elixir! is cool!"
+|> String.split()
+|> List.first()
+|> String.trim_trailing("!")
+|> dbg()
+```
+
+## Chart: Memory x Reductions
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+```elixir
+alias VegaLite, as: Vl
+
+Vl.new(width: 600, height: 400)
+|> Vl.data_from_values(processes)
+|> Vl.mark(:point, tooltip: true)
+|> Vl.encode_field(:x, "reductions", type: :quantitative, scale: [type: "log", base: 10])
+|> Vl.encode_field(:y, "memory", type: :quantitative, scale: [type: "log", base: 10])
+|> Vl.encode_field(:color, "status", type: :nominal)
+|> Vl.encode_field(:tooltip, "pid", type: :nominal)
+```
+
+## Chart: memory over time
+
+```elixir
+:erlang.memory()
+```
+
+```elixir
+memory_plot =
+  Vl.new(width: 600, height: 400, padding: 20)
+  |> Vl.repeat(
+    [layer: ["total", "processes", "atom", "binary", "code", "ets"]],
+    Vl.new()
+    |> Vl.mark(:line)
+    |> Vl.encode_field(:x, "iter", type: :quantitative, title: "Measurement")
+    |> Vl.encode_repeat(:y, :layer, type: :quantitative, title: "Memory usage (MB)")
+    |> Vl.encode(:color, datum: [repeat: :layer], type: :nominal)
+  )
+  |> Kino.VegaLite.new()
+```
+
+```elixir
+Kino.VegaLite.periodically(memory_plot, 200, 1, fn i ->
+  point =
+    :erlang.memory()
+    |> Enum.map(fn {type, bytes} -> {type, bytes / 1_000_000} end)
+    |> Map.new()
+    |> Map.put(:iter, i)
+
+  Kino.VegaLite.push(memory_plot, point, window: 1000)
+  {:cont, i + 1}
+end)
+```
+
+**Binary usage**
+
+```elixir
+for i <- 1..10_000 do
+  String.duplicate("cat", i)
+end
+```
+
+**ETS usage**
+
+```elixir
+tid = :ets.new(:users, [:set, :public])
+
+for i <- 1..1_000_000 do
+  :ets.insert(tid, {i, "User #{i}"})
+end
+```
+
+## Smart cells
+
+<!-- livebook:{"attrs":{"database":"demo_dev","hostname":"localhost","password":"","port":5432,"type":"postgres","username":"postgres","variable":"conn"},"kind":"Elixir.KinoDB.ConnectionCell","livebook_object":"smart_cell"} -->
+
+```elixir
+opts = [
+  hostname: "localhost",
+  port: 5432,
+  username: "postgres",
+  password: "",
+  database: "demo_dev",
+  socket_options: [:inet6]
+]
+
+{:ok, conn} = Kino.start_child({Postgrex, opts})
+```
+
+```elixir
+Vl.new(width: 600, height: 400, title: "Processes")
+|> Vl.data_from_values(processes, only: ["memory", "reductions", "status"])
+|> Vl.mark(:point)
+|> Vl.encode_field(:y, "memory", type: :quantitative, scale: [type: "log"])
+|> Vl.encode_field(:x, "reductions", type: :quantitative, scale: [type: "log"])
+|> Vl.encode_field(:color, "status", type: :nominal)
+```
