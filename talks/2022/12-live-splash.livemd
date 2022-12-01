@@ -218,13 +218,13 @@ flowchart TD;
 
 Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
 
-However, isn't a single execution flow too limiting?
+Still... maybe a single execution flow is too limiting?
 
 <!-- livebook:{"branch_parent_index":1} -->
 
 ## Livebook: branched sections
 
-We can also branch a new section at the end of a section for concurrent execution:
+Branched sections allow you to run experiments from your main Livebook branch and also allow for concurrent execution within Livebooks:
 
 ```mermaid
 flowchart TD;
@@ -279,7 +279,7 @@ flowchart LR;
 
 </div>
 
-This brings a separation of concern where your code actually knows very little about Livebook. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides and supporting additional features such as the rendering of outputs.
+This brings a separation of concern where your code actually knows nothing about Livebook. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides and supporting additional features such as the rendering of outputs.
 
 Anyone can create their own outputs. We have two kinds: static and live. Let's build a counter as a live output:
 
@@ -404,9 +404,40 @@ Or what if we want to connect to a database?
 
 </div>
 
-And you can really build any Smart cell you want.
+You can build any Smart cell you want. They build on top of live outputs and share the same building blocks:
 
-Smart cells run as part of your code, similar to live outputs, and they can be published to and installed as an other Elixir package in [Hex.pm](https://hex.pm/).
+<div style="height: 60px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  subgraph Clients
+    b1((Browser #1));
+    b2((Browser #2));
+  end
+
+  subgraph Livebook
+    l[Session];
+    b1--WebSockets-->l;
+    b2--WebSockets-->l;
+  end
+
+  subgraph Runtime
+    c[Code];
+    sc[Smart cell];
+    o1[Output #1];
+    o2[Output #2];
+    l--Erlang distribution-->c;
+    l--Erlang distribution-->o1;
+    l--Erlang distribution-->o2;
+    l--Erlang distribution-->sc;
+  end
+```
+
+Erlang VM processes all the way down!
+
+You can also publish Smart cells as packages to [Hex.pm](https://hex.pm/) or installed them any other Elixir package.
 
 PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interface or a text editor, as long as it solves the problem at hand, it is _code_.
 
