@@ -394,11 +394,7 @@ There is another feature we want to show, which is how can use Elixir pipelines 
 We have been very excited to see that our generalization scales to different use cases. Here is a community example. Let's start with an image:
 
 ```elixir
-%{body: image} =
-  Req.get!("https://raw.githubusercontent.com/pjreddie/darknet/master/data/dog.jpg")
-
-save_to = Path.join(System.tmp_dir(), "image.jpg")
-File.write!(save_to, image)
+%{body: image} = Req.get!("https://raw.githubusercontent.com/pjreddie/darknet/master/data/dog.jpg")
 Kino.Image.new(image, :jpeg)
 ```
 
@@ -408,8 +404,8 @@ And now let's transform this image:
 alias Evision, as: OpenCV
 rotation = OpenCV.getRotationMatrix2D({512 / 2, 512 / 2}, 90, 1)
 
-Path.join(System.tmp_dir(), "image.jpg")
-|> OpenCV.imread()
+image
+|> OpenCV.imdecode(OpenCV.cv_IMREAD_ANYCOLOR())
 |> OpenCV.blur({9, 9})
 |> OpenCV.warpAffine(rotation, {512, 512})
 |> OpenCV.rectangle({50, 10}, {125, 60}, {255, 0, 0})
@@ -420,6 +416,37 @@ Path.join(System.tmp_dir(), "image.jpg")
 ```
 
 For more examples, see this [Livebook by Ryo Wakabayashi](https://qiita.com/RyoWakabayashi/items/7d9eff9df1041c705713).
+
+<!-- livebook:{"break_markdown":true} -->
+
+Finally, we also want to incorporate some of the ideas found in "Usable Live Programming" by Sean McDirmid and "Example-based live programming for everyone" by Fabio Niephaus and co.
+
+When adding features, our goal is to leverage  _existing_ language constructs as much as possible:
+
+* Traces -> `dbg`
+* Assertions -> pattern matching
+* Examples -> ???
+
+What if we provide our examples via [doctests](https://hex.pm/ex_unit/ExUnit.DocTest.html)?
+
+```elixir
+defmodule HelloWorld do
+  @doc """
+
+      iex> HelloWorld.my_addition(1, 2)
+      3
+
+      iex> HelloWorld.my_addition(1, 2)
+      4
+
+  """
+  def my_addition(a, b) do
+    a + b
+  end
+end
+```
+
+We are excited about exploring this because it promotes best practices across documentation, testing, and debugging.
 
 ## Other topics
 
