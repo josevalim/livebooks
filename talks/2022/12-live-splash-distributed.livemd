@@ -9,5 +9,6 @@ defmodule Distributed do
   end
 end
 
-{node(), Node.get_cookie()}
+IO.puts(node())
+IO.puts(Node.get_cookie())
 ```

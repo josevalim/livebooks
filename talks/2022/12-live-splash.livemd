@@ -12,7 +12,7 @@ Mix.install([
 
 ## Intro to Elixir
 
-Elixir is a functional and dynamic programming languge that runs on the Erlang VM:
+Elixir is a functional and dynamic programming language that runs on the Erlang VM:
 
 ```elixir
 list = ["hello", 123, :banana]
@@ -251,13 +251,33 @@ for _ <- Stream.interval(1000) do
 end
 ```
 
-## Kino: extensibility model
+## Livebook: runtime
 
-Your code and all interactive widgets run in a separate Erlang VM instance using the distribution channels we learned earlier. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides.
+Your code runs in a separate Erlang VM instance using the distribution channels we learned earlier:
 
-We have two kinds of outputs: static and live.
+<div style="height: 160px">
 
-Let's build a counter as a live output:
+</div>
+
+```mermaid
+flowchart LR;
+  subgraph Livebook
+    l[Session];
+  end
+
+  subgraph Runtime
+    c[Code];
+    l--Erlang distribution-->c;
+  end
+```
+
+<div style="height: 160px">
+
+</div>
+
+This brings a separation of concern where your code actually knows very little about Livebook. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides and supporting additional features such as the rendering of outputs.
+
+Anyone can create their own outputs. We have two kinds: static and live. Let's build a counter as a live output:
 
 ```elixir
 defmodule CounterExample do
@@ -335,8 +355,10 @@ flowchart LR;
   end
 
   subgraph Runtime
+    c[Code];
     o1[Output #1];
     o2[Output #2];
+    l--Erlang distribution-->c;
     l--Erlang distribution-->o1;
     l--Erlang distribution-->o2;
   end
@@ -344,7 +366,7 @@ flowchart LR;
 
 ## Smart cells
 
-The Erlang provides a great set of tools for observability. Let's gather information about all processes:
+The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
 
 ```elixir
 processes =
@@ -417,8 +439,6 @@ image
 
 For more examples, see this [Livebook by Ryo Wakabayashi](https://qiita.com/RyoWakabayashi/items/7d9eff9df1041c705713).
 
-<!-- livebook:{"break_markdown":true} -->
-
 Finally, we also want to incorporate some of the ideas found in "Usable Live Programming" by Sean McDirmid and "Example-based live programming for everyone" by Fabio Niephaus and co.
 
 When adding features, our goal is to leverage  _existing_ language constructs as much as possible:
@@ -426,6 +446,10 @@ When adding features, our goal is to leverage  _existing_ language constructs as
 * Traces -> `dbg`
 * Assertions -> pattern matching
 * Examples -> ???
+
+<div style="height: 400px">
+
+</div>
 
 What if we provide our examples via [doctests](https://hex.pm/ex_unit/ExUnit.DocTest.html)?
 
@@ -453,7 +477,7 @@ We are excited about exploring this because it promotes best practices across do
 ### Not covered today
 
 * The notebook source is a subset of Markdown. Get it here: https://github.com/josevalim/livebooks
-* Once installed, the "Learn" section contains several example notebooks
+* If you install Livebook, the "Learn" section contains several example notebooks
 * The editor supports code completion, documentation on mouse over, and more!
 * Notebooks can connect to production nodes to automate, produce diagnostics, etc.
 
