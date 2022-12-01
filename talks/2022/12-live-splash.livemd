@@ -4,7 +4,9 @@
 # TODO: Remove :kino_vega_lite before running the notebook
 # TODO: Currently requires Kino from GitHub for distributed tracing
 Mix.install([
-  {:kino, "~> 0.7.0", github: "livebook-dev/kino"}
+  {:kino, "~> 0.7.0", github: "livebook-dev/kino", override: true},
+  {:evision, "~> 0.1.21"},
+  {:req, "~> 0.3"}
 ])
 ```
 
@@ -364,7 +366,9 @@ Inspired by the work on ["mage" by Mary Beth Kery and co](https://arxiv.org/abs/
 
 <!-- livebook:{"break_markdown":true} -->
 
-<div style="height: 200px"></div>
+<div style="height: 200px">
+
+</div>
 
 Smart cells task-driven workflows built on top of Kino live outputs. Smart cells run as part of your code and it can be installed as an other Elixir package in [Hex.pm](https://hex.pm/).
 
@@ -374,8 +378,48 @@ PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interfa
 
 ## Live programming
 
-* dbg with evision example
-* doctests
+We have started exploring Live programming ideas only recently, but we've already seen how Livebook interacts with your code and the runtime.
+
+There is another feature we want to show, which is how can use Elixir pipelines and its `dbg` macro to manipulate code, as shown in "Unravel: A Fluent Code Explorer for Data Wrangling", by Nischal Shrestha and co:
+
+```elixir
+"Elixir is cool!"
+|> String.trim_trailing("!")
+|> String.split()
+|> Enum.reverse()
+|> List.first()
+|> dbg()
+```
+
+We have been very excited to see that our generalization scales to different use cases. Here is a community example. Let's start with an image:
+
+```elixir
+%{body: image} =
+  Req.get!("https://raw.githubusercontent.com/pjreddie/darknet/master/data/dog.jpg")
+
+save_to = Path.join(System.tmp_dir(), "image.jpg")
+File.write!(save_to, image)
+Kino.Image.new(image, :jpeg)
+```
+
+And now let's transform this image:
+
+```elixir
+alias Evision, as: OpenCV
+rotation = OpenCV.getRotationMatrix2D({512 / 2, 512 / 2}, 90, 1)
+
+Path.join(System.tmp_dir(), "image.jpg")
+|> OpenCV.imread()
+|> OpenCV.blur({9, 9})
+|> OpenCV.warpAffine(rotation, {512, 512})
+|> OpenCV.rectangle({50, 10}, {125, 60}, {255, 0, 0})
+|> OpenCV.ellipse({300, 300}, {100, 200}, 30, 0, 360, {255, 255, 0}, thickness: 3)
+|> dbg()
+
+:ok
+```
+
+For more examples, see this [Livebook by Ryo Wakabayashi](https://qiita.com/RyoWakabayashi/items/7d9eff9df1041c705713).
 
 ## Other topics
 
@@ -388,6 +432,6 @@ PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interfa
 
 ### Roadmap
 
-* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9)
-* Smart cells for Data and Machine Learning
-* Usable Live programming (as per Usable Live Programming, Sean McDirmid, SPLASH Onward! 2013)
+* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9, see [#1223](https://github.com/livebook-dev/livebook/issues/1223))
+* Smart cells for Data and Machine Learning (see [#1545](https://github.com/livebook-dev/livebook/issues/1545))
+* Implement Usable Live Programming ideas, Example-based Live programming, and more (see [#1351](https://github.com/livebook-dev/livebook/issues/1351))
