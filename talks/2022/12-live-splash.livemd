@@ -6,7 +6,9 @@
 Mix.install([
   {:kino, "~> 0.7.0", github: "livebook-dev/kino", override: true},
   {:evision, "~> 0.1.21"},
-  {:req, "~> 0.3"}
+  {:req, "~> 0.3"},
+  {:kino_db, "~> 0.2.0"},
+  {:postgrex, "~> 0.16.3"}
 ])
 ```
 
@@ -214,7 +216,9 @@ flowchart TD;
 
 <!-- livebook:{"break_markdown":true} -->
 
-By tracking inputs and outputs with a pinch of static analysis, we can cache evaluation results and track when cells become stale.
+Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
+
+However, isn't a single execution flow too limiting?
 
 <!-- livebook:{"branch_parent_index":1} -->
 
@@ -251,7 +255,7 @@ for _ <- Stream.interval(1000) do
 end
 ```
 
-## Livebook: runtime
+## Livebook: multiplayer runtimes
 
 Your code runs in a separate Erlang VM instance using the distribution channels we learned earlier:
 
@@ -364,7 +368,7 @@ flowchart LR;
   end
 ```
 
-## Smart cells
+## Smart cells: meta-programmable notebooks
 
 The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
 
@@ -392,15 +396,46 @@ Inspired by the work on ["mage" by Mary Beth Kery and co](https://arxiv.org/abs/
 
 </div>
 
-Smart cells task-driven workflows built on top of Kino live outputs. Smart cells run as part of your code and it can be installed as an other Elixir package in [Hex.pm](https://hex.pm/).
+Or what if we want to connect to a database?
 
-Besides the built-in Smart cells, you will find community examples for talking to APIs, building slideshows, running quizzes, and more.
+<!-- livebook:{"break_markdown":true} -->
+
+<div style="height: 200px">
+
+</div>
+
+And you can really build any Smart cell you want.
+
+Smart cells run as part of your code, similar to live outputs, and they can be published to and installed as an other Elixir package in [Hex.pm](https://hex.pm/).
 
 PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interface or a text editor, as long as it solves the problem at hand, it is _code_.
 
-## Live programming
+## Other topics
 
-We have started exploring Live programming ideas only recently, but we've already seen how Livebook interacts with your code and the runtime.
+### Not covered today
+
+* The notebook source is a subset of Markdown. Get it here: https://github.com/josevalim/livebooks
+* If you install Livebook, the "Learn" section contains several example notebooks
+* The editor supports code completion, documentation on mouse over, and more!
+* Notebooks can connect to production nodes to automate, produce diagnostics, etc.
+
+<div style="height: 200px">
+
+</div>
+
+### Roadmap
+
+* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9, see [#1223](https://github.com/livebook-dev/livebook/issues/1223))
+* Smart cells for Data and Machine Learning (see [#1545](https://github.com/livebook-dev/livebook/issues/1545))
+* Implement Usable Live Programming ideas, Example-based Live programming, and more (see [#1351](https://github.com/livebook-dev/livebook/issues/1351))
+
+<div style="height: 200px">
+
+</div>
+
+## Addendum: Live programming
+
+We have started exploring Live programming ideas only recently and we've already seen how Livebook interacts with your code and the runtime to generate sequential traces.
 
 There is another feature we want to show, which is how can use Elixir pipelines and its `dbg` macro to manipulate code, as shown in "Unravel: A Fluent Code Explorer for Data Wrangling", by Nischal Shrestha and co:
 
@@ -471,18 +506,3 @@ end
 ```
 
 We are excited about exploring this because it promotes best practices across documentation, testing, and debugging.
-
-## Other topics
-
-### Not covered today
-
-* The notebook source is a subset of Markdown. Get it here: https://github.com/josevalim/livebooks
-* If you install Livebook, the "Learn" section contains several example notebooks
-* The editor supports code completion, documentation on mouse over, and more!
-* Notebooks can connect to production nodes to automate, produce diagnostics, etc.
-
-### Roadmap
-
-* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9, see [#1223](https://github.com/livebook-dev/livebook/issues/1223))
-* Smart cells for Data and Machine Learning (see [#1545](https://github.com/livebook-dev/livebook/issues/1545))
-* Implement Usable Live Programming ideas, Example-based Live programming, and more (see [#1351](https://github.com/livebook-dev/livebook/issues/1351))
