@@ -456,7 +456,7 @@ PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interfa
 
 ### Roadmap
 
-* Tackling the pain points in "What’s Wrong with Computational Notebooks?" (2 remaining out of 9, see [#1223](https://github.com/livebook-dev/livebook/issues/1223))
+* Tackling the pain points in ["What’s Wrong with Computational Notebooks?"](https://www.microsoft.com/en-us/research/publication/whats-wrong-with-computational-notebooks/) (2 remaining out of 9, see [#1223](https://github.com/livebook-dev/livebook/issues/1223))
 * Smart cells for Data and Machine Learning (see [#1545](https://github.com/livebook-dev/livebook/issues/1545))
 * Implement Usable Live Programming ideas, Example-based Live programming, and more (see [#1351](https://github.com/livebook-dev/livebook/issues/1351))
 
@@ -468,7 +468,7 @@ PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interfa
 
 We have started exploring Live programming ideas only recently and we've already seen how Livebook interacts with your code and the runtime to generate sequential traces.
 
-There is another feature we want to show, which is how can use Elixir pipelines and its `dbg` macro to manipulate code, as shown in "Unravel: A Fluent Code Explorer for Data Wrangling", by Nischal Shrestha and co:
+There is another feature we want to show, which is how can use Elixir pipelines and its `dbg` macro to manipulate code, as shown in ["Unravel: A Fluent Code Explorer for Data Wrangling" by Nischal Shrestha and co](https://dl.acm.org/doi/10.1145/3472749.3474744):
 
 ```elixir
 "Elixir is cool!"
@@ -505,7 +505,7 @@ image
 
 For more examples, see this [Livebook by Ryo Wakabayashi](https://qiita.com/RyoWakabayashi/items/7d9eff9df1041c705713).
 
-Finally, we also want to incorporate some of the ideas found in "Usable Live Programming" by Sean McDirmid and "Example-based live programming for everyone" by Fabio Niephaus and co.
+Finally, we also want to incorporate some of the ideas found in ["Usable Live Programming" by Sean McDirmid](https://www.microsoft.com/en-us/research/publication/usable-live-programming/) and ["Example-based live programming for everyone" by Fabio Niephaus and co](https://dl.acm.org/doi/10.1145/3426428.3426919).
 
 When adding features, our goal is to leverage  _existing_ language constructs as much as possible:
 
@@ -517,7 +517,7 @@ When adding features, our goal is to leverage  _existing_ language constructs as
 
 </div>
 
-What if we provide our examples via [doctests](https://hex.pm/ex_unit/ExUnit.DocTest.html)?
+What if we provide "Examples" via [doctests](https://hex.pm/ex_unit/ExUnit.DocTest.html)?
 
 ```elixir
 defmodule HelloWorld do
