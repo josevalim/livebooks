@@ -1,10 +1,8 @@
 # LIVE 2022 - Splash
 
 ```elixir
-# TODO: Remove :kino_vega_lite before running the notebook
-# TODO: Currently requires Kino from GitHub for distributed tracing
 Mix.install([
-  {:kino, "~> 0.7.0", github: "livebook-dev/kino", override: true},
+  {:kino, "~> 0.7.0"},
   {:evision, "~> 0.1.21"},
   {:req, "~> 0.3"},
   {:kino_db, "~> 0.2.0"},
@@ -522,7 +520,7 @@ When adding features, our goal is to leverage  _existing_ language constructs as
 
 </div>
 
-What if we provide "Examples" via [doctests](https://hex.pm/ex_unit/ExUnit.DocTest.html)?
+What if we provide "Examples" via [doctests](https://hexdocs.pm/ex_unit/ExUnit.DocTest.html)?
 
 ```elixir
 defmodule HelloWorld do
