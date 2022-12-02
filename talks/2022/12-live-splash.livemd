@@ -255,7 +255,7 @@ for _ <- Stream.interval(1000) do
 end
 ```
 
-## Livebook: multiplayer runtimes
+## Livebook: multiplayer runtime
 
 Your code runs in a separate Erlang VM instance using the distribution channels we learned earlier:
 
@@ -339,11 +339,11 @@ CounterExample.new(0)
 
 If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to even running games inside your notebooks!
 
-Each "live" output is a separate process and they can all run concurrently. Here is how it looks like in practice:
-
-<div style="height: 60px">
+<div style="height: 180px">
 
 </div>
+
+Each "live" output is a separate process and they can all run concurrently. Here is how it looks like in practice:
 
 ```mermaid
 flowchart LR;
@@ -404,7 +404,7 @@ Or what if we want to connect to a database?
 
 </div>
 
-You can build any Smart cell you want. They build on top of live outputs and share the same building blocks:
+Smart cells run as part of your code and you can create any Smart cell that you want. They build on top of live outputs and share the same building blocks:
 
 <div style="height: 60px">
 
@@ -434,6 +434,11 @@ flowchart LR;
     l--Erlang distribution-->sc;
   end
 ```
+
+<div style="height: 60px">
+
+</div>
+
 
 Erlang VM processes all the way down!
 
