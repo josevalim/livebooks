@@ -1,0 +1,14 @@
+# Bringing Elixit to life - Distributed
+
+## Section
+
+```elixir
+defmodule Distributed do
+  def hello_world do
+    IO.puts("Hello world from another notebook!")
+  end
+end
+
+IO.puts(node())
+IO.puts(Node.get_cookie())
+```
