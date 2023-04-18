@@ -1,11 +1,18 @@
 # Bringing Elixir to life
 
 ```elixir
-Mix.install([
-  {:kino, "~> 0.9.0"},
-  {:evision, "~> 0.1.21"},
-  {:req, "~> 0.3"}
-])
+Mix.install(
+  [
+    {:kino, "~> 0.9.0"},
+    {:evision, "~> 0.1.21"},
+    {:req, "~> 0.3"},
+    {:kino_vega_lite, "~> 0.1.7"},
+    {:kino_bumblebee, "~> 0.3.0"},
+    {:exla, "~> 0.5.1"},
+    {:kino_explorer, "~> 0.1.4"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]]
+)
 ```
 
 ## Processes
@@ -73,7 +80,7 @@ Messages can also be distributed across nodes. Let's try to execute something in
 Distributed.hello_world()
 ```
 
-But what if `Distributed` is [defined on another notebook](12-live-splash-distributed.livemd)?
+But what if `Distributed` is [defined on another notebook](04-elixir-conf-distributed.livemd)?
 
 ```elixir
 node =
@@ -92,66 +99,17 @@ Node.set_cookie(node, cookie)
 :erpc.call(node, Distributed, :hello_world, [])
 ```
 
-## Truly reproducible workflows
+Maybe we want to learn about supervisors too?
 
-Livebook execution model is fully sequential and there is no global mutable state. It looks like this:
-
-<div style="height: 80px">
-
-</div>
-
-```mermaid
-flowchart TD;
-  c1[Cell A];
-  c2[Cell B];
-  c3[Cell C];
-  c1--Binding + Environment-->c2--Binding + Environment-->c3;
-```
-
-<div style="height: 80px">
-
-</div>
-
-<!-- livebook:{"break_markdown":true} -->
-
-Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
-
-Still... maybe a single execution flow is too limiting?
-
-<!-- livebook:{"branch_parent_index":1} -->
-
-## Branched sections
-
-Branched sections allow you to run experiments from your main Livebook branch and also allow for concurrent execution within Livebooks:
-
-```mermaid
-flowchart TD;
-  subgraph Section #1
-    c1[Cell A];
-    c2[Cell B];
-    c1-->c2;
-  end
-  subgraph Branch from #1
-    c5[Cell E];
-    c6[Cell F];
-    c2-->c5;
-    c5-->c6;
-  end
-  subgraph Section #2
-    c3[Cell C];
-    c4[Cell D];
-    c2-->c3;
-    c3-->c4;
-  end
+```elixir
+Mix.Supervisor
 ```
 
 ```elixir
-frame = Kino.Frame.new() |> Kino.render()
-
-for _ <- Stream.interval(1000) do
-  Kino.Frame.render(frame, :erlang.memory())
-end
+:mix
 ```
+
+And it turns out, that processes and distribution are the major abstraction that makes Livebook works.
 
 ## Multiplayer runtime
 
@@ -235,29 +193,7 @@ end
 CounterExample.new(0)
 ```
 
-If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to even running games inside your notebooks!
-
-<div style="height: 180px">
-
-</div>
-
-Each cell emits an output and, since outputs can be live, they can be stateful. You can think of Livebook as a "build tool", where the assembling of static and live outputs themselves are reproducible, but from there each output take their own life and execute outside of the Livebook model, like this:
-
-```mermaid
-flowchart TD;
-  c1[Cell A];
-  c2[Cell B];
-  c3[Cell C];
-  o1[Output A];
-  o2[Output B];
-  o3[Output C];
-  c1--Binding + Environment-->c2--Binding + Environment-->c3;
-  c1-->o1;
-  c2-->o2;
-  c3-->o3;
-```
-
-<!-- livebook:{"break_markdown":true} -->
+If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to building all sorts of collaborative applications!
 
 <div style="height: 90px">
 
@@ -288,7 +224,7 @@ flowchart LR;
   end
 ```
 
-## Smart cells: meta-programmable notebooks
+## Interactive data
 
 The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
 
@@ -305,6 +241,14 @@ processes =
     }
   end
 ```
+
+Actually, let's put this data into a table:
+
+```elixir
+Kino.DataTable.new(processes)
+```
+
+## Smart cells: meta-programmable notebooks
 
 But how to plot it?
 
@@ -384,7 +328,7 @@ alias Evision, as: OpenCV
 rotation = OpenCV.getRotationMatrix2D({512 / 2, 512 / 2}, 90, 1)
 
 image
-|> OpenCV.imdecode(OpenCV.cv_IMREAD_ANYCOLOR())
+|> OpenCV.imdecode(OpenCV.Constant.cv_IMREAD_ANYCOLOR())
 |> OpenCV.blur({9, 9})
 |> OpenCV.warpAffine(rotation, {512, 512})
 |> OpenCV.rectangle({50, 10}, {125, 60}, {255, 0, 0})
