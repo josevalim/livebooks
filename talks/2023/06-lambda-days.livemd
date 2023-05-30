@@ -1,0 +1,538 @@
+# Meta-programmable functional notebooks
+
+```elixir
+Mix.install(
+  [
+    {:kino, "~> 0.9.0"},
+    {:evision, "~> 0.1.21"},
+    {:req, "~> 0.3"},
+    {:kino_vega_lite, "~> 0.1.7"},
+    {:kino_bumblebee, "~> 0.3.0"},
+    {:exla, "~> 0.5.1"},
+    {:kino_explorer, "~> 0.1.4"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]]
+)
+```
+
+## Intro to Elixir
+
+Elixir is a functional and dynamic programming language that runs on the Erlang VM:
+
+```elixir
+list = ["hello", 123, :banana]
+```
+
+Elixir data structures are immutable by default:
+
+```elixir
+List.delete(list, 123)
+```
+
+```elixir
+list
+```
+
+Elixir supports pattern-matching, polymorphism via protocols, meta-programming, and more. But today, we will focus on its concurrency features. In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+
+```elixir
+for _ <- 1..1_000_000 do
+  spawn(fn -> :ok end)
+end
+```
+
+Process communicate by sending messages between them:
+
+```elixir
+child =
+  spawn(fn ->
+    receive do
+      {:ping, caller} -> send(caller, :pong)
+    end
+  end)
+
+send(child, {:ping, self()})
+
+receive do
+  :pong -> :it_worked!
+end
+```
+
+And Livebook can helps us see how processes communicate between them:
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  child =
+    spawn(fn ->
+      receive do
+        {:ping, caller} -> send(caller, :pong)
+      end
+    end)
+
+  send(child, {:ping, self()})
+
+  receive do
+    :pong -> :it_worked!
+  end
+end)
+```
+
+Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  1..4
+  |> Task.async_stream(
+    fn _ -> Process.sleep(Enum.random(100..300)) end,
+    max_concurrency: 4
+  )
+  |> Stream.run()
+end)
+```
+
+Messages can also be distributed across nodes. Let's try to execute something in the `Distributed` module:
+
+```elixir
+Distributed.hello_world()
+```
+
+But what if `Distributed` is [defined on another notebook](06-lambda-days-distributed.livemd)?
+
+```elixir
+node =
+  Kino.Input.text("Node")
+  |> Kino.render()
+  |> Kino.Input.read()
+  |> String.to_atom()
+
+cookie =
+  Kino.Input.text("Cookie")
+  |> Kino.render()
+  |> Kino.Input.read()
+  |> String.to_atom()
+
+Node.set_cookie(node, cookie)
+:erpc.call(node, Distributed, :hello_world, [])
+```
+
+Enough about Elixir, let's talk Livebook!
+
+## Livebook: truly reproducible workflows
+
+What makes notebooks hard to reproduce?
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart TD;
+    root[Sources of irreproducibility];
+    ooo[Out of order execution];
+    gms[Global mutable state];
+    root-->ooo;
+    root-->gms;
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+For example, in Jupyter notebooks, the execution flow is:
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  state--read #2 -->c1--write #2-->state;
+  state--read #3 -->c2--write #3-->state;
+  state--read #1 -->c3--write #1-->state;
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Notebooks may linearize cells via static and dynamic analysis:
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c3[Cell C];
+  c1[Cell A];
+  c2[Cell B];
+
+  state--read #1 -->c3--write #1-->state;
+  state--read #2 -->c1;
+  c2-- write #2 -->state;
+  c1-->c2;
+
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+However, even if ordering is employed, **they are still stateful**. The following code, in most notebooks, will increment x:
+
+```elixir
+x = 1
+```
+
+```elixir
+x = x + 1
+```
+
+Livebook execution model is fully sequential and there is no global mutable state. It looks like this:
+
+<div style="height: 80px">
+
+</div>
+
+```mermaid
+flowchart TD;
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  c1--Binding + Environment-->c2--Binding + Environment-->c3;
+```
+
+<div style="height: 80px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
+
+Still... maybe a single execution flow is too limiting?
+
+<!-- livebook:{"branch_parent_index":1} -->
+
+## Livebook: branched sections
+
+Branched sections allow you to run experiments from your main Livebook branch and also allow for concurrent execution within Livebooks:
+
+```mermaid
+flowchart TD;
+  subgraph Section #1
+    c1[Cell A];
+    c2[Cell B];
+    c1-->c2;
+  end
+  subgraph Branch from #1
+    c5[Cell E];
+    c6[Cell F];
+    c2-->c5;
+    c5-->c6;
+  end
+  subgraph Section #2
+    c3[Cell C];
+    c4[Cell D];
+    c2-->c3;
+    c3-->c4;
+  end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+
+for _ <- Stream.interval(1000) do
+  Kino.Frame.render(frame, :erlang.memory())
+end
+```
+
+## Livebook: multiplayer runtime
+
+Your code runs in a separate Erlang VM instance using the distribution channels we learned earlier:
+
+<div style="height: 160px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  subgraph Livebook
+    l[Session];
+  end
+
+  subgraph Runtime
+    c[Code];
+    l--Erlang distribution-->c;
+  end
+```
+
+<div style="height: 160px">
+
+</div>
+
+This brings a separation of concern where your code actually knows nothing about Livebook. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides and supporting additional features such as the rendering of outputs.
+
+Anyone can create their own outputs. We have two kinds: static and live. Let's build a counter as a live output:
+
+```elixir
+defmodule CounterExample do
+  use Kino.JS
+  use Kino.JS.Live
+
+  def new(count) do
+    Kino.JS.Live.new(__MODULE__, count)
+  end
+
+  @impl true
+  def init(count, ctx) do
+    {:ok, assign(ctx, count: count)}
+  end
+
+  @impl true
+  def handle_connect(ctx) do
+    {:ok, ctx.assigns.count, ctx}
+  end
+
+  @impl true
+  def handle_event("bump", _, ctx) do
+    ctx = update(ctx, :count, &(&1 + 1))
+    broadcast_event(ctx, "update", ctx.assigns.count)
+    {:noreply, ctx}
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, count) {
+      ctx.root.innerHTML = `
+        <div id="count"></div>
+        <button id="bump" style="margin: 2px 0;">Bump</button>
+      `;
+
+      const countEl = document.getElementById("count");
+      const bumpEl = document.getElementById("bump");
+
+      countEl.innerHTML = count;
+
+      ctx.handleEvent("update", (count) => {
+        countEl.innerHTML = count;
+      });
+
+      bumpEl.addEventListener("click", (event) => {
+        ctx.pushEvent("bump");
+      });
+    }
+    """
+  end
+end
+
+CounterExample.new(0)
+```
+
+If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to even running games inside your notebooks!
+
+<div style="height: 180px">
+
+</div>
+
+Each cell emits an output and, since outputs can be live, they can be stateful. You can think of Livebook as a "build tool", where the assembling of static and live outputs themselves are reproducible, but from there each output take their own life and execute outside of the Livebook model, like this:
+
+```mermaid
+flowchart TD;
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  o1[Output A];
+  o2[Output B];
+  o3[Output C];
+  c1--Binding + Environment-->c2--Binding + Environment-->c3;
+  c1-->o1;
+  c2-->o2;
+  c3-->o3;
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div style="height: 90px">
+
+</div>
+
+This is possible because each "live" output is a separate process and they can all run concurrently. Here is how the underlying architecture looks like:
+
+```mermaid
+flowchart LR;
+  subgraph Clients
+    b1((Browser #1));
+    b2((Browser #2));
+  end
+
+  subgraph Livebook
+    l[Session];
+    b1--WebSockets-->l;
+    b2--WebSockets-->l;
+  end
+
+  subgraph Runtime
+    c[Code];
+    o1[Output #1];
+    o2[Output #2];
+    l--Erlang distribution-->c;
+    l--Erlang distribution-->o1;
+    l--Erlang distribution-->o2;
+  end
+```
+
+## Smart cells: meta-programmable notebooks
+
+The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+But how to plot it?
+
+Inspired by the work on ["mage" by Mary Beth Kery and co](https://arxiv.org/abs/2009.10643), Livebook has smart cells:
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div style="height: 200px">
+
+</div>
+
+Or what if we want to run a machine learning model?
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div style="height: 200px">
+
+</div>
+
+Smart cells run as part of your code and you can create any Smart cell that you want. They build on top of live outputs and share the same building blocks:
+
+<div style="height: 60px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  subgraph Clients
+    b1((Browser #1));
+    b2((Browser #2));
+  end
+
+  subgraph Livebook
+    l[Session];
+    b1--WebSockets-->l;
+    b2--WebSockets-->l;
+  end
+
+  subgraph Runtime
+    c[Code];
+    sc[Smart cell];
+    o1[Output #1];
+    o2[Output #2];
+    l--Erlang distribution-->c;
+    l--Erlang distribution-->o1;
+    l--Erlang distribution-->o2;
+    l--Erlang distribution-->sc;
+  end
+```
+
+<div style="height: 60px">
+
+</div>
+
+Erlang VM processes all the way down!
+
+You can also publish Smart cells as packages to [Hex.pm](https://hex.pm/) or installed them any other Elixir package.
+
+PS: "no code" is a misnomer: it shouldn't matter if you used a graphical interface or a text editor, as long as it solves the problem at hand, it is _code_.
+
+## Live programming: debugging
+
+We have started exploring Live programming ideas only recently and we've already seen how Livebook interacts with your code and the runtime to generate sequential traces.
+
+There is another feature we want to show, which is how can use Elixir pipelines and its `dbg` macro to manipulate code, as shown in ["Unravel: A Fluent Code Explorer for Data Wrangling" by Nischal Shrestha and co](https://dl.acm.org/doi/10.1145/3472749.3474744):
+
+```elixir
+"Elixir is cool!"
+|> String.trim_trailing("!")
+|> String.split()
+|> Enum.reverse()
+|> List.first()
+|> dbg()
+```
+
+We have been very excited to see that our generalization scales to different use cases. Here is a community example. Let's start with an image:
+
+```elixir
+%{body: image} =
+  Req.get!("https://raw.githubusercontent.com/pjreddie/darknet/master/data/dog.jpg")
+
+Kino.Image.new(image, :jpeg)
+```
+
+And now let's transform this image:
+
+```elixir
+alias Evision, as: OpenCV
+rotation = OpenCV.getRotationMatrix2D({512 / 2, 512 / 2}, 90, 1)
+
+image
+|> OpenCV.imdecode(OpenCV.Constant.cv_IMREAD_ANYCOLOR())
+|> OpenCV.blur({9, 9})
+|> OpenCV.warpAffine(rotation, {512, 512})
+|> OpenCV.rectangle({50, 10}, {125, 60}, {255, 0, 0})
+|> OpenCV.ellipse({300, 300}, {100, 200}, 30, 0, 360, {255, 255, 0}, thickness: 3)
+|> dbg()
+
+:ok
+```
+
+For more examples, see this [Livebook by Ryo Wakabayashi](https://qiita.com/RyoWakabayashi/items/7d9eff9df1041c705713).
+
+## Live programming: doctests
+
+Doctests sit at the intersection of documentation and testing. Can we promote it as best-practice?
+
+```elixir
+defmodule HelloWorld do
+  @doc """
+
+      iex> HelloWorld.my_addition(1, 2)
+      3
+
+      iex> HelloWorld.my_addition(1, 2)
+      4
+
+      iex> HelloWorld.my_addition(1, "2")
+      3
+
+  """
+  def my_addition(a, b) do
+    a + b
+  end
+end
+```
