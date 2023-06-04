@@ -98,6 +98,14 @@ Distributed.hello_world()
 
 But what if `Distributed` is [defined on another notebook](06-lambda-days-distributed.livemd)?
 
+Every notebook gets its own Elixir runtime. Each runtime has its own node and cookie:
+
+```elixir
+{node(), Node.get_cookie()}
+```
+
+To talk to other nodes, we need their node and cookie to connect to them:
+
 ```elixir
 node =
   Kino.Input.text("Node")
@@ -281,7 +289,9 @@ flowchart LR;
 
   subgraph Runtime
     c[Code];
+    bc[Branched code];
     l--Erlang distribution-->c;
+    l--Erlang distribution-->bc;
   end
 ```
 
@@ -290,95 +300,6 @@ flowchart LR;
 </div>
 
 This brings a separation of concern where your code actually knows nothing about Livebook. The [Kino](https://github.com/livebook-dev/kino) library is the one responsible for connecting both sides and supporting additional features such as the rendering of outputs.
-
-Anyone can create their own outputs. We have two kinds: static and live. Let's build a counter as a live output:
-
-```elixir
-defmodule CounterExample do
-  use Kino.JS
-  use Kino.JS.Live
-
-  def new(count) do
-    Kino.JS.Live.new(__MODULE__, count)
-  end
-
-  @impl true
-  def init(count, ctx) do
-    {:ok, assign(ctx, count: count)}
-  end
-
-  @impl true
-  def handle_connect(ctx) do
-    {:ok, ctx.assigns.count, ctx}
-  end
-
-  @impl true
-  def handle_event("bump", _, ctx) do
-    ctx = update(ctx, :count, &(&1 + 1))
-    broadcast_event(ctx, "update", ctx.assigns.count)
-    {:noreply, ctx}
-  end
-
-  asset "main.js" do
-    """
-    export function init(ctx, count) {
-      ctx.root.innerHTML = `
-        <div id="count"></div>
-        <button id="bump" style="margin: 2px 0;">Bump</button>
-      `;
-
-      const countEl = document.getElementById("count");
-      const bumpEl = document.getElementById("bump");
-
-      countEl.innerHTML = count;
-
-      ctx.handleEvent("update", (count) => {
-        countEl.innerHTML = count;
-      });
-
-      bumpEl.addEventListener("click", (event) => {
-        ctx.pushEvent("bump");
-      });
-    }
-    """
-  end
-end
-
-CounterExample.new(0)
-```
-
-If you open up this same Livebook on another tab, you will learn that both Livebook and your outputs are collaborative, opening the way to even running games inside your notebooks!
-
-<div style="height: 180px">
-
-</div>
-
-Each cell emits an output and, since if outputs are "live", they are processes themselves and they are stateful. You can think of Livebook as a "build tool", where the assembling of static and live outputs themselves are reproducible, but from there each output take their own life and execute outside of the Livebook model.
-
-Here is how the underlying architecture looks like:
-
-```mermaid
-flowchart LR;
-  subgraph Clients
-    b1((Browser #1));
-    b2((Browser #2));
-  end
-
-  subgraph Livebook
-    l[Session];
-    b1--WebSockets-->l;
-    b2--WebSockets-->l;
-  end
-
-  subgraph Runtime
-    c[Code];
-    o1[Output #1];
-    o2[Output #2];
-    l--Erlang distribution-->c;
-    l--Erlang distribution-->o1;
-    l--Erlang distribution-->o2;
-  end
-```
 
 ## Smart cells: meta-programmable notebooks
 
@@ -437,12 +358,10 @@ flowchart LR;
 
   subgraph Runtime
     c[Code];
+    bc[Branched code];
     sc[Smart cell];
-    o1[Output #1];
-    o2[Output #2];
     l--Erlang distribution-->c;
-    l--Erlang distribution-->o1;
-    l--Erlang distribution-->o2;
+    l--Erlang distribution-->bc;
     l--Erlang distribution-->sc;
   end
 ```
