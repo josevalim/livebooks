@@ -112,7 +112,7 @@ cookie =
   |> String.to_atom()
 
 Node.set_cookie(node, cookie)
-:erpc.call(node, Distributed, :hello_world, [])
+:erpc.call(node, fn -> Distributed.hello_world() end)
 ```
 
 Enough about Elixir, let's talk Livebook!
@@ -268,8 +268,15 @@ Your code runs in a separate Erlang VM instance using the distribution channels 
 
 ```mermaid
 flowchart LR;
+  subgraph Clients
+    b1((Browser #1));
+    b2((Browser #2));
+  end
+
   subgraph Livebook
     l[Session];
+    b1--WebSockets-->l;
+    b2--WebSockets-->l;
   end
 
   subgraph Runtime
@@ -346,29 +353,9 @@ If you open up this same Livebook on another tab, you will learn that both Liveb
 
 </div>
 
-Each cell emits an output and, since outputs can be live, they can be stateful. You can think of Livebook as a "build tool", where the assembling of static and live outputs themselves are reproducible, but from there each output take their own life and execute outside of the Livebook model, like this:
+Each cell emits an output and, since if outputs are "live", they are processes themselves and they are stateful. You can think of Livebook as a "build tool", where the assembling of static and live outputs themselves are reproducible, but from there each output take their own life and execute outside of the Livebook model.
 
-```mermaid
-flowchart TD;
-  c1[Cell A];
-  c2[Cell B];
-  c3[Cell C];
-  o1[Output A];
-  o2[Output B];
-  o3[Output C];
-  c1--Binding + Environment-->c2--Binding + Environment-->c3;
-  c1-->o1;
-  c2-->o2;
-  c3-->o3;
-```
-
-<!-- livebook:{"break_markdown":true} -->
-
-<div style="height: 90px">
-
-</div>
-
-This is possible because each "live" output is a separate process and they can all run concurrently. Here is how the underlying architecture looks like:
+Here is how the underlying architecture looks like:
 
 ```mermaid
 flowchart LR;
