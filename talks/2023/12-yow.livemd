@@ -6,7 +6,7 @@ Mix.install(
     {:kino, "~> 0.11.0"},
     {:bandit, "~> 1.0"},
     {:req, "~> 0.4"},
-    {:kino_vega_lite, "~> 0.1.10"},
+    {:kino_vega_lite, "~> 0.1.11"},
     {:kino_bumblebee, "~> 0.4.0"},
     {:exla, ">= 0.0.0"},
     {:kino_db, "~> 0.2.3"},
