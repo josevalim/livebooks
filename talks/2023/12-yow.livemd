@@ -166,7 +166,7 @@ Kino.Process.render_seq_trace(fn ->
     fn _ -> Process.sleep(Enum.random(100..300)) end,
     max_concurrency: 4
   )
-  |> Stream.run()
+  |> Enum.to_list()
 end)
 ```
 
