@@ -32,7 +32,7 @@ Enum.fetch!(list, 0)
 
 What does it mean to be functional?
 
-<div style="height: 500px">
+<div style="height: 300px">
 
 </div>
 
@@ -45,8 +45,12 @@ Let's see some Object-Oriented code:
 >> list.pop()
 2
 >> list.pop()
-1 
+1
 ```
+
+<div style="height: 200px">
+
+</div>
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -60,6 +64,10 @@ List.delete_at(list, -1)
 ```elixir
 List.delete_at(list, -1)
 ```
+
+<div style="height: 200px">
+
+</div>
 
 Or when actually popping from a list:
 
