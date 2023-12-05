@@ -1,4 +1,4 @@
-# Livebook: concurrency, web, and AI
+# Elixir and Livebook: concurrency, web, and AI
 
 ```elixir
 Mix.install(
@@ -16,9 +16,9 @@ Mix.install(
 )
 ```
 
-## Dynamic
+## Welcome
 
-Elixir is a dynamic programming language that runs on the Erlang VM:
+Elixir is a dynamic and functional programming language that runs on the Erlang VM:
 
 ```elixir
 list = ["hello", 123, :banana]
@@ -28,88 +28,17 @@ list = ["hello", 123, :banana]
 Enum.fetch!(list, 0)
 ```
 
-## Functional
-
-What does it mean to be functional?
-
-<div style="height: 300px">
-
-</div>
-
-Let's see some Object-Oriented code:
-
-```javascript
->> list = [1, 2, 3]
->> list.pop()
-3
->> list.pop()
-2
->> list.pop()
-1
-```
-
 <div style="height: 200px">
 
 </div>
+
+In Elixir it is common to write our code a series of data transformations with the `|>` (pipe) operator. Let's give it a try.
 
 <!-- livebook:{"break_markdown":true} -->
 
-The value of the list changes. Let's compare it with Elixir:
-
-```elixir
-list = [1, 2, 3]
-List.delete_at(list, -1)
-```
-
-```elixir
-List.delete_at(list, -1)
-```
-
 <div style="height: 200px">
 
 </div>
-
-Or when actually popping from a list:
-
-```elixir
-List.pop_at(list, -1)
-```
-
-Elixir data structures are **immutable**. Let's discuss another example.
-
-<div style="height: 300px">
-
-</div>
-
-Imagine you are building an e-commerce. You may write this code:
-
-```javascript
->> cart.addItem(item)
-undefined
-```
-
-<div style="height: 300px">
-
-</div>
-
-In Elixir, you would write:
-
-<!-- livebook:{"force_markdown":true} -->
-
-```elixir
->> Cart.add_item(cart, item)
-%Cart{items: [...]}
-```
-
-<div style="height: 300px">
-
-</div>
-
-This style of programming is made clear with the `|>` (pipe) operator:
-
-```elixir
-
-```
 
 ## Concurrency
 
@@ -124,14 +53,16 @@ end
 Process communicate by sending messages between them:
 
 ```elixir
+parent = self()
+
 child =
   spawn(fn ->
     receive do
-      {:ping, caller} -> send(caller, :pong)
+      :ping -> send(parent, :pong)
     end
   end)
 
-send(child, {:ping, self()})
+send(child, :ping)
 
 receive do
   :pong -> :it_worked!
@@ -142,14 +73,16 @@ And Livebook can helps us see how processes communicate between them:
 
 ```elixir
 Kino.Process.render_seq_trace(fn ->
+  parent = self()
+
   child =
     spawn(fn ->
       receive do
-        {:ping, caller} -> send(caller, :pong)
+        :ping -> send(parent, :pong)
       end
     end)
 
-  send(child, {:ping, self()})
+  send(child, :ping)
 
   receive do
     :pong -> :it_worked!
@@ -192,7 +125,7 @@ processes =
 
 But how to plot it?
 
-## WebAI
+## Demo time: Web + AI
 
 <div style="height: 500px">
 
