@@ -28,17 +28,54 @@ list = ["hello", 123, :banana]
 Enum.fetch!(list, 0)
 ```
 
+## Functional
+
+What does it mean to be functional?
+
 <div style="height: 200px">
 
 </div>
 
-In Elixir it is common to write our code a series of data transformations with the `|>` (pipe) operator. Let's give it a try.
+Let's see some Object-Oriented code:
+
+```javascript
+>> list = [1, 2, 3]
+>> list.pop()
+3
+>> list.pop()
+2
+>> list.pop()
+1
+```
+
+<div style="height: 200px">
+
+</div>
 
 <!-- livebook:{"break_markdown":true} -->
 
-<div style="height: 200px">
+The value of the list changes. Let's compare it with Elixir:
 
-</div>
+```elixir
+list = [1, 2, 3]
+List.delete_at(list, -1)
+```
+
+```elixir
+List.delete_at(list, -1)
+```
+
+Or when actually popping from a list:
+
+```elixir
+List.pop_at(list, -1)
+```
+
+Elixir data structures are **immutable**. This style of programming is made clear with the `|>` (pipe) operator:
+
+```elixir
+
+```
 
 ## Concurrency
 
@@ -72,22 +109,6 @@ end
 And Livebook can helps us see how processes communicate between them:
 
 ```elixir
-Kino.Process.render_seq_trace(fn ->
-  parent = self()
-
-  child =
-    spawn(fn ->
-      receive do
-        :ping -> send(parent, :pong)
-      end
-    end)
-
-  send(child, :ping)
-
-  receive do
-    :pong -> :it_worked!
-  end
-end)
 ```
 
 Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
