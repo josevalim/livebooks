@@ -1,0 +1,277 @@
+# Elixir and Livebook: concurrency, web, and AI
+
+```elixir
+Mix.install(
+  [
+    {:kino, "~> 0.11.0"},
+    {:bandit, "~> 1.0"},
+    {:req, "~> 0.4"},
+    {:kino_vega_lite, "~> 0.1.11"},
+    {:kino_bumblebee, "~> 0.4.0"},
+    {:exla, ">= 0.0.0"},
+    {:kino_db, "~> 0.2.3"},
+    {:exqlite, "~> 0.11.0"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]]
+)
+```
+
+## Welcome
+
+Elixir is a dynamic and functional programming language that runs on the Erlang VM:
+
+```elixir
+list = ["hello", 123, :banana]
+```
+
+```elixir
+Enum.fetch!(list, 0)
+```
+
+## Functional == reproducible
+
+What makes notebooks hard to reproduce?
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart TD;
+    root[Sources of irreproducibility];
+    ooo[Out of order execution];
+    gms[Global mutable state];
+    root-->ooo;
+    root-->gms;
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+For example, in Jupyter notebooks, the execution flow is:
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  state--read #2 -->c1--write #2-->state;
+  state--read #3 -->c2--write #3-->state;
+  state--read #1 -->c3--write #1-->state;
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Notebooks may linearize cells via static and dynamic analysis:
+
+<div style="height: 150px">
+
+</div>
+
+```mermaid
+flowchart LR;
+  state((State));
+  c3[Cell C];
+  c1[Cell A];
+  c2[Cell B];
+
+  state--read #1 -->c3--write #1-->state;
+  state--read #2 -->c1;
+  c2-- write #2 -->state;
+  c1-->c2;
+
+```
+
+<div style="height: 150px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+However, even if ordering is employed, **they are still stateful**. The following code, in most notebooks, will increment x:
+
+```elixir
+x = 1
+```
+
+```elixir
+x = x + 1
+```
+
+Livebook execution model is fully sequential and there is no global mutable state. It looks like this:
+
+<div style="height: 80px">
+
+</div>
+
+```mermaid
+flowchart TD;
+  c1[Cell A];
+  c2[Cell B];
+  c3[Cell C];
+  c1--Binding + Environment-->c2--Binding + Environment-->c3;
+```
+
+<div style="height: 80px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
+
+Still... maybe a single execution flow is too limiting?
+
+<!-- livebook:{"branch_parent_index":1} -->
+
+## Branched sections
+
+Branched sections allow you to run experiments from your main Livebook branch and also allow for concurrent execution within Livebooks:
+
+```mermaid
+flowchart TD;
+  subgraph Section #1
+    c1[Cell A];
+    c2[Cell B];
+    c1-->c2;
+  end
+  subgraph Branch from #1
+    c5[Cell E];
+    c6[Cell F];
+    c2-->c5;
+    c5-->c6;
+  end
+  subgraph Section #2
+    c3[Cell C];
+    c4[Cell D];
+    c2-->c3;
+    c3-->c4;
+  end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+
+for _ <- Stream.interval(1000) do
+  Kino.Frame.render(frame, :erlang.memory())
+end
+```
+
+## Concurrency
+
+Branched sections runs inside Erlang VM processes. In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+
+```elixir
+for _ <- 1..1_000_000 do
+  spawn(fn -> :ok end)
+end
+```
+
+Process communicate by sending messages between them:
+
+```elixir
+parent = self()
+
+child =
+  spawn(fn ->
+    receive do
+      :ping -> send(parent, :pong)
+    end
+  end)
+
+send(child, :ping)
+
+receive do
+  :pong -> :it_worked!
+end
+```
+
+And Livebook can helps us see how processes communicate between them:
+
+```elixir
+```
+
+Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  ["/foo", "/bar", "/baz", "/bat"]
+  |> Task.async_stream(
+    fn _ -> Process.sleep(Enum.random(100..300)) end,
+    max_concurrency: 4
+  )
+  |> Enum.to_list()
+end)
+```
+
+Let's take visualizations even further!
+
+## Plotting live data
+
+The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+But how to plot it?
+
+## Demo time: Web + AI
+
+<div style="height: 500px">
+
+</div>
+
+## Live programming: drag and drop
+
+Try drag-and-dropping some files!
+
+## Live programming: debugging
+
+Use `|> dbg()` after a pipeline for some awesome debugging.
+
+## Live programming: doctests
+
+Doctests sit at the intersection of documentation and testing:
+
+```elixir
+defmodule HelloWorld do
+  @doc """
+
+      iex> HelloWorld.my_addition(1, 2)
+      3
+
+      iex> HelloWorld.my_addition(1, 2)
+      4
+
+      iex> HelloWorld.my_addition(1, "2")
+      3
+
+  """
+  def my_addition(a, b) do
+    a + b
+  end
+end
+```
