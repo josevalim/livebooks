@@ -132,11 +132,9 @@ flowchart TD;
 
 Now we can track inputs and outputs and, with a pinch of static analysis, we can cache evaluation results and notify when cells become stale.
 
-Still... maybe a single execution flow is too limiting?
-
 ## Concurrency
 
-In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+In Elixir, all code runs inside lightweight threads called processes. We can literally create millions of them:
 
 ```elixir
 for _ <- 1..1_000_000 do
