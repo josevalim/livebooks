@@ -134,44 +134,9 @@ Now we can track inputs and outputs and, with a pinch of static analysis, we can
 
 Still... maybe a single execution flow is too limiting?
 
-<!-- livebook:{"branch_parent_index":1} -->
-
-## Branched sections
-
-Branched sections allow you to run experiments from your main Livebook branch and also allow for concurrent execution within Livebooks:
-
-```mermaid
-flowchart TD;
-  subgraph Section #1
-    c1[Cell A];
-    c2[Cell B];
-    c1-->c2;
-  end
-  subgraph Branch from #1
-    c5[Cell E];
-    c6[Cell F];
-    c2-->c5;
-    c5-->c6;
-  end
-  subgraph Section #2
-    c3[Cell C];
-    c4[Cell D];
-    c2-->c3;
-    c3-->c4;
-  end
-```
-
-```elixir
-frame = Kino.Frame.new() |> Kino.render()
-
-for _ <- Stream.interval(1000) do
-  Kino.Frame.render(frame, :erlang.memory())
-end
-```
-
 ## Concurrency
 
-Branched sections runs inside Erlang VM processes. In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
 
 ```elixir
 for _ <- 1..1_000_000 do
@@ -201,6 +166,7 @@ end
 And Livebook can helps us see how processes communicate between them:
 
 ```elixir
+
 ```
 
 Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
