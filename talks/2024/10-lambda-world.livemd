@@ -3,16 +3,20 @@
 ```elixir
 Mix.install(
   [
-    {:kino, "~> 0.11.0"},
+    {:kino, "~> 0.11"},
     {:bandit, "~> 1.0"},
     {:req, "~> 0.4"},
-    {:kino_vega_lite, "~> 0.1.11"},
-    {:kino_bumblebee, "~> 0.4.0"},
+    {:kino_vega_lite, "~> 0.1"},
+    {:kino_bumblebee, "~> 0.4"},
     {:exla, ">= 0.0.0"},
-    {:kino_db, "~> 0.2.3"},
-    {:exqlite, "~> 0.11.0"}
+    {:kino_db, "~> 0.2"},
+    {:exqlite, "~> 0.11"}
   ],
-  config: [nx: [default_backend: EXLA.Backend]]
+  config: [nx: [default_backend: EXLA.Backend]],
+  system_env: [
+    CC: "/opt/homebrew/opt/llvm@16/bin/clang",
+    CXX: "/opt/homebrew/opt/llvm@16/bin/clang++"
+  ]
 )
 ```
 
