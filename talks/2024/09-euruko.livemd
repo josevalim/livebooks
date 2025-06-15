@@ -1,0 +1,284 @@
+<!-- livebook:{"file_entries":[{"name":"euruko-2010.jpg","type":"attachment"},{"name":"euruko-2011-pt1.webp","type":"attachment"},{"name":"euruko-2011-pt2.jpg","type":"attachment"},{"name":"euruko-2016.jpg","type":"attachment"}]} -->
+
+# EuRuKo, Elixir, and Livebook
+
+```elixir
+Mix.install(
+  [
+    {:kino, "~> 0.11.0"},
+    {:bandit, "~> 1.0"},
+    {:req, "~> 0.4"},
+    {:kino_vega_lite, "~> 0.1.11"},
+    {:kino_bumblebee, "~> 0.4.0"},
+    {:exla, ">= 0.0.0"},
+    {:kino_db, "~> 0.2.3"},
+    {:exqlite, "~> 0.11.0"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]]
+)
+```
+
+## In the beginning...
+
+<div style="height: 400px">
+
+</div>
+
+## EuRuKo 2010: Kraków
+
+![](files/euruko-2010.jpg)
+
+## EuRuKo 2011: Berlin
+
+![](files/euruko-2011-pt1.webp)
+
+<!-- livebook:{"break_markdown":true} -->
+
+![](files/euruko-2011-pt2.jpg)
+
+## EuRuKo 2016: Sofia
+
+![](files/euruko-2016.jpg)
+
+## Intro to Elixir
+
+Elixir is a dynamic programming language that runs on the Erlang VM:
+
+```elixir
+list = ["hello", 123, :banana]
+```
+
+```elixir
+Enum.fetch!(list, 0)
+```
+
+## Functional
+
+What does it mean to be functional?
+
+<div style="height: 200px">
+
+</div>
+
+Let's see some Ruby code:
+
+```ruby
+irb> list = [1, 2, 3]
+irb> list.pop
+3
+irb> list.pop
+2
+irb> list.pop
+1
+```
+
+<div style="height: 200px">
+
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+The value of the list changes. Let's compare it with Elixir:
+
+```elixir
+list = [1, 2, 3]
+List.delete_at(list, -1)
+```
+
+```elixir
+List.delete_at(list, -1)
+```
+
+Elixir data structures are **immutable**. Each function accepts all inputs required and returns everything that has changed. So to pop from a list:
+
+```elixir
+List.pop_at(list, -1)
+```
+
+This style of programming is made clear with the `|>` (pipe) operator:
+
+```elixir
+"Ruby is awesome!"
+|> String.split()
+|> List.last()
+|> String.upcase()
+```
+
+## Concurrency
+
+Elixir supports pattern-matching, polymorphism via protocols, meta-programming, and more. But today, we will focus on its concurrency features. In the Erlang VM, all code runs inside lightweight threads called processes. We can literally create millions of them:
+
+```elixir
+for _ <- 1..1_000_000 do
+  spawn(fn -> :ok end)
+end
+```
+
+Process communicate by sending messages between them:
+
+```elixir
+parent = self()
+
+child =
+  spawn(fn ->
+    receive do
+      :ping -> send(parent, :pong)
+    end
+  end)
+
+send(child, :ping)
+
+receive do
+  :pong -> :it_worked!
+end
+```
+
+And Livebook can helps us see how processes communicate between them:
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  parent = self()
+
+  child =
+    spawn(fn ->
+      receive do
+        :ping -> send(parent, :pong)
+      end
+    end)
+
+  send(child, :ping)
+
+  receive do
+    :pong -> :it_worked!
+  end
+end)
+```
+
+Maybe you want to see how Elixir can perform multiple tasks at once, scaling on both CPU and IO?
+
+```elixir
+Kino.Process.render_seq_trace(fn ->
+  ["/foo", "/bar", "/baz", "/bat"]
+  |> Task.async_stream(
+    fn _ -> Process.sleep(Enum.random(100..300)) end,
+    max_concurrency: 4
+  )
+  |> Enum.to_list()
+end)
+```
+
+Let's take visualizations even further!
+
+## Plotting live data
+
+The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+But how to plot it?
+
+```elixir
+chart =
+  VegaLite.new(width: 300)
+  |> VegaLite.data_from_values(processes, only: ["memory", "reductions", "status"])
+  |> VegaLite.mark(:point)
+  |> VegaLite.encode_field(:x, "memory", type: :quantitative, scale: [type: :log])
+  |> VegaLite.encode_field(:y, "reductions", type: :quantitative, scale: [type: :log])
+  |> VegaLite.encode_field(:color, "status", type: :nominal)
+  |> Kino.VegaLite.render()
+
+Kino.listen(5000, fn _ ->
+  processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+
+  Kino.VegaLite.clear(chart)
+  Kino.VegaLite.push_many(chart, processes)
+end)
+```
+
+## Demo time: Web + AI
+
+```elixir
+defmodule MyApp do
+  use Plug.Builder
+
+  plug :fetch_query_params
+  plug :render
+
+  def render(conn, _opts) do
+    text = conn.params["text"]
+    output = Nx.Serving.batched_run(:my_ai, text)
+    [%{label: label, score: _} | _] = output.predictions
+    Plug.Conn.send_resp(conn, 200, "this is #{label}!")
+  end
+end
+
+
+node = :"livebook_shqmpdvx--slfag7wq@127.0.0.1"
+cookie = :c_M7TL8oNmkaN3JEQA1MVmQ0CFqiPOypTFGALlMQTAZVEEEFzvlZWG
+
+Node.set_cookie(node, cookie)
+Node.connect(node)
+Kino.start_child!({Bandit, plug: MyApp, port: 6789})
+```
+
+```elixir
+Req.get!("http://localhost:6789", params: [text: "jose's talk is boring"])
+```
+
+<div style="height: 500px">
+
+</div>
+
+## Live programming: drag and drop
+
+Try drag-and-dropping some files!
+
+## Live programming: debugging
+
+Use `|> dbg()` after a pipeline for some awesome debugging.
+
+## Live programming: doctests
+
+Doctests sit at the intersection of documentation and testing:
+
+```elixir
+defmodule HelloWorld do
+  @doc """
+
+      iex> HelloWorld.my_addition(1, 2)
+      3
+
+      iex> HelloWorld.my_addition(1, 2)
+      4
+
+      iex> HelloWorld.my_addition(1, "2")
+      3
+
+  """
+  def my_addition(a, b) do
+    a + b
+  end
+end
+```
