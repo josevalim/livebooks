@@ -1,0 +1,218 @@
+# Livebook + Numerical Elixir
+
+```elixir
+Mix.install(
+  [
+    {:kino, "~> 0.11"},
+    {:bandit, "~> 1.0"},
+    {:req, "~> 0.4"},
+    {:kino_vega_lite, "~> 0.1"},
+    {:kino_bumblebee, "~> 0.4"},
+    {:exla, ">= 0.0.0"},
+    {:kino_db, "~> 0.2"},
+    {:exqlite, "~> 0.11"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]],
+  system_env: [
+    CC: "/opt/homebrew/opt/llvm@16/bin/clang",
+    CXX: "/opt/homebrew/opt/llvm@16/bin/clang++"
+  ]
+)
+```
+
+## Why Livebook and Numerical Elixir?
+
+* Focus on product and developer tooling
+* Technical-depth across language design, web apps, and machine learning
+* Leading both in-house and open source teams
+
+## Intro to Elixir and Livebook
+
+Elixir is a dynamic, concurrent and distributed programming language that runs on the Erlang VM:
+
+```elixir
+list = ["hello", 123, :banana]
+```
+
+```elixir
+Enum.fetch!(list, 0)
+```
+
+## Concurrency
+
+In Elixir, all code runs inside lightweight threads called processes. We can literally create millions of them:
+
+```elixir
+for _ <- 1..1_000_000 do
+  spawn(fn -> :ok end)
+end
+```
+
+Process communicate by sending messages between them:
+
+```elixir
+parent = self()
+
+child =
+  spawn(fn ->
+    receive do
+      :ping -> send(parent, :pong)
+    end
+  end)
+
+send(child, :ping)
+
+receive do
+  :pong -> :it_worked!
+end
+```
+
+And Livebook can helps us see how processes communicate between them!
+
+## Bridging the gap: smart cells
+
+The Erlang VM provides a great set of tools for observability. Let's gather information about all processes:
+
+```elixir
+processes =
+  for pid <- Process.list() do
+    info = Process.info(pid, [:reductions, :memory, :status])
+
+    %{
+      pid: inspect(pid),
+      reductions: info[:reductions],
+      memory: info[:memory],
+      status: info[:status]
+    }
+  end
+```
+
+But how to plot it?
+
+## Numerical Elixir
+
+Challenge: using Elixir for deep learning sounds counter intuitive.
+
+<div style="height: 100px">
+
+</div>
+
+BUT!
+
+<!-- livebook:{"force_markdown":true} -->
+
+```python
+@jit
+def predict(params, batch):
+    x = batch @ params["w1"] + params["b1"]    # dot(w1) |> add(b1)
+    x = jax.nn.sigmoid(x)                      # logistic()
+    x = x @ params["w2"] + params["b2"]        # dot(w2) |> add(b2)
+    x = jax.nn.softmax(x, axis=1)              # softmax()
+    return x
+```
+
+With tensor compilers, Python is simply a tracer/tape recorder. However:
+
+* Can't trace conditionals
+* Can't trace side-effects (`x[y] = z`)
+
+JAX official guide says:
+
+> JAX is intended to be used with a functional style of programming
+
+> Unlike NumPy arrays, JAX arrays are always immutable
+
+<div style="height: 100px">
+
+</div>
+
+The Elixir version:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+ defn predict(params, batch) do
+    x = Nx.dot(batch, params.w1) + params.b1
+    x = Nx.logistic(x)
+    x = Nx.dot(x, params.w2) + params.b2
+    Nx.softmax(x)
+  end
+```
+
+## Demo time
+
+Smart cells for machine learning!
+
+## A (almost) complete ecosystem for machine learning
+
+* Nx => Numpy + JAX + Tensor Serving
+  * Runs on OpenXLA (Google), PyTorch (Meta), MLX (Apple)
+* Axon => PyTorch Ignite
+* Bumblebee => Hugging Face Transformers
+* Scholar => scikit-learn + cuML
+* Livebook => Jupyter notebooks
+* ??? => Pandas + Arrow
+
+## Results
+
+* Nx runs in production in many Elixir companies, albeit small models
+* Livebook has taken over multiple domains: teaching, embedding, and machine learning
+* Polars was the wrong foundation for dataframes, pivoting to DuckDB
+
+## My responsibilities
+
+* As a developer
+  * Overall Nx design
+  * Implemented autograd
+  * Implemented concurrent and distributed serving
+* As a product lead
+  * Shaped the overall vision for Livebook as a developer tool
+  * Built the team (3-7 devs) who worked on Livebook (in-house) and Livebook Teams (product)
+* As a technical leader
+  * Coordinated open-source work across multiple projects
+  * Presented at technical and academic conferences
+
+## In-depth demo
+
+```elixir
+defmodule WebAI do
+  # Our abstraction for web apps
+  use Plug.Builder
+
+  plug :fetch_query_params
+  plug :render
+
+  def render(conn, _opts) do
+    # Load a predefined model from hugging face
+    {:ok, model_info} =
+      Bumblebee.load_model({:hf, "finiteautomata/bertweet-base-emotion-analysis"})
+
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "vinai/bertweet-base"})
+
+    serving =
+      Bumblebee.Text.text_classification(model_info, tokenizer,
+        compile: [batch_size: 1, sequence_length: 100],
+        defn_options: [compiler: EXLA]
+      )
+
+    # Run the model
+    output = Nx.Serving.run(serving, conn.params["text"])
+
+    # Format and send the response
+    response =
+      for %{label: label, score: score} <- output.predictions do
+        "* #{label} (#{trunc(score * 100)}%)\n"
+      end
+
+    Plug.Conn.send_resp(conn, 200, response)
+  end
+end
+
+# Run the web server
+Kino.start_child!({Bandit, plug: WebAI, port: 6789})
+```
+
+```elixir
+resp = Req.get!("http://localhost:6789", params: [text: "oh wow, i didn't know that"])
+IO.puts(resp.body)
+```
